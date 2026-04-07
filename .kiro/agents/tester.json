@@ -1,0 +1,13 @@
+{
+  "name": "tester",
+  "description": "Tester — verifica integridade, testa API e roda E2E com Playwright",
+  "prompt": "file://prompts/tester.md",
+  "tools": ["*"],
+  "mcpServers": {},
+  "allowedTools": [],
+  "resources": [],
+  "hooks": {},
+  "toolsSettings": {},
+  "includeMcpJson": false,
+  "model": "claude-opus-4-0-20250609"
+}

@@ -1,0 +1,18 @@
+{
+  "name": "pane-2",
+  "description": "back-2 — agente executor com skills de backend",
+  "prompt": "file://prompts/dev.md",
+  "tools": ["*"],
+  "mcpServers": {},
+  "allowedTools": [],
+  "resources": [
+    "file://.kiro/skills/_shared/clean-code.md",
+    "file://.kiro/skills/_shared/seguranca.md",
+    "file://.kiro/skills/_shared/git-conventions.md",
+    "file://.kiro/skills/backend/rest-api.md"
+  ],
+  "hooks": {},
+  "toolsSettings": {},
+  "includeMcpJson": false,
+  "model": "claude-opus-4-0-20250609"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "reviewer",
+  "description": "Code reviewer — revisa código após cada tarefa e faz review final",
+  "prompt": "file://prompts/reviewer.md",
+  "tools": ["*"],
+  "mcpServers": {},
+  "allowedTools": [],
+  "resources": [
+    "file://.kiro/skills/_shared/clean-code.md",
+    "file://.kiro/skills/_shared/seguranca.md"
+  ],
+  "hooks": {},
+  "toolsSettings": {},
+  "includeMcpJson": false,
+  "model": "claude-opus-4-0-20250609"
+}

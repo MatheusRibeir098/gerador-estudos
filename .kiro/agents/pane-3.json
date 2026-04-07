@@ -1,0 +1,20 @@
+{
+  "name": "pane-3",
+  "description": "front-1 — agente executor com skills de frontend",
+  "prompt": "file://prompts/dev.md",
+  "tools": ["*"],
+  "mcpServers": {},
+  "allowedTools": [],
+  "resources": [
+    "file://.kiro/skills/_shared/clean-code.md",
+    "file://.kiro/skills/_shared/seguranca.md",
+    "file://.kiro/skills/_shared/git-conventions.md",
+    "file://.kiro/skills/frontend/tailwind.md",
+    "file://.kiro/skills/frontend/typescript.md",
+    "file://.kiro/skills/frontend/node.md"
+  ],
+  "hooks": {},
+  "toolsSettings": {},
+  "includeMcpJson": false,
+  "model": "claude-opus-4-0-20250609"
+}
