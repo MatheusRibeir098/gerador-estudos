@@ -8,9 +8,9 @@ PROJECT_DIR="/home/matheus/multi-agents-framework/gerador-estudos"
 TASKS_FILE="$PROJECT_DIR/orchestration/tasks.json"
 SESSION="gerador-estudos"
 INIT_TIMEOUT=120
-NUM_REVIEWERS=4
+NUM_REVIEWERS=1
 HAS_TESTER=true    # true ou false
-HAS_DOCUMENTER=false  # true ou false
+HAS_DOCUMENTER=true  # true ou false
 
 tmux kill-session -t "$SESSION" 2>/dev/null || true
 

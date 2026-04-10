@@ -1,7 +1,7 @@
 {
-  "name": "tester",
-  "description": "Tester — verifica compilação TS, testa API com curl e roda E2E com Playwright",
-  "prompt": "file://prompts/tester.md",
+  "name": "documenter",
+  "description": "Documentador técnico — gera contexto das mudanças para futuras implementações",
+  "prompt": "file://prompts/documenter.md",
   "tools": ["*"],
   "mcpServers": {},
   "allowedTools": [],

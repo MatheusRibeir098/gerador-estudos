@@ -1,0 +1,100 @@
+
+=== Orquestrador v4.3: 15 tarefas, 5 dev + 4 reviewers ===
+[0s] ✉ T001 → pane 1 (back-1)
+[0s] ✉ T002 → pane 2 (back-2)
+[0s] ✉ T003 → pane 3 (front-1)
+[0s] ✉ T004 → pane 4 (front-2)
+[0s] ✉ T005 → pane 5 (front-3)
+[15s] 🔄 T001 processando (pane 1)
+[15s] 🔄 T002 processando (pane 2)
+[15s] 🔄 T003 processando (pane 3)
+[15s] 🔄 T004 processando (pane 4)
+[15s] 🔄 T005 processando (pane 5)
+[77s] ✅ T003 concluída (pane 3, 77s)
+[77s] 📝 Review T003 → R1
+[82s] ✅ T004 concluída (pane 4, 82s)
+[82s] 📝 Review T004 → R2
+[91s] ✅ T002 concluída (pane 2, 91s)
+[91s] ✉ T007 → pane 2 (back-2)
+[91s] 📝 Review T002 → R3
+[99s] 🔄 T007 processando (pane 2)
+[108s] ✅ T005 concluída (pane 5, 108s)
+[108s] ✉ T011 → pane 3 (front-1)
+[108s] ✉ T012 → pane 4 (front-2)
+[108s] ✉ T013 → pane 5 (front-3)
+[108s] 📝 Review T005 → R4
+[122s] ✅ T007 concluída (pane 2, 31s)
+[122s] 🔄 T011 processando (pane 3)
+[122s] 🔄 T012 processando (pane 4)
+[122s] 🔄 T013 processando (pane 5)
+[122s] 📝 Review T003 concluída (R1)
+[122s] 📝 Review T007 → R1
+[127s] 📝 Review T002 concluída (R3)
+[140s] 📝 Review T004 concluída (R2)
+[149s] ✅ T012 concluída (pane 4, 41s)
+[149s] ✉ T014 → pane 4 (front-2)
+[149s] 📝 Review T007 concluída (R1)
+[149s] 📝 Review T012 → R1
+[157s] 🔄 T014 processando (pane 4)
+[160s] ✅ T001 concluída (pane 1, 160s)
+[160s] ✉ T006 → pane 1 (back-1)
+[160s] 📝 Review T001 → R2
+[168s] 🔄 T006 processando (pane 1)
+[184s] 📝 Review T012 concluída (R1)
+[187s] ✅ T013 concluída (pane 5, 79s)
+[187s] 📝 Review T001 concluída (R2)
+[187s] 📝 Review T013 → R1
+[195s] ✅ T014 concluída (pane 4, 46s)
+[195s] 📝 Review T014 → R2
+[201s] ✅ T006 concluída (pane 1, 41s)
+[201s] ✉ T008 → pane 1 (back-1)
+[201s] ✉ T009 → pane 2 (back-2)
+[201s] 📝 Review T006 → R3
+[211s] 🔄 T008 processando (pane 1)
+[211s] 🔄 T009 processando (pane 2)
+[211s] 📝 Review T013 concluída (R1)
+[224s] 📝 Review T014 concluída (R2)
+[236s] ✅ T011 concluída (pane 3, 128s)
+[236s] ✉ T015 → pane 3 (front-1)
+[236s] 📝 Review T006 concluída (R3)
+[236s] 📝 Review T011 → R1
+[244s] 🔄 T015 processando (pane 3)
+[253s] ✅ T008 concluída (pane 1, 52s)
+[253s] ✅ T009 concluída (pane 2, 52s)
+[253s] ✉ T010 → pane 1 (back-1)
+[253s] 📝 Review T008 → R2
+[253s] 📝 Review T009 → R3
+[264s] 🔄 T010 processando (pane 1)
+[264s] 📝 Review T011 concluída (R1)
+[282s] ✅ T015 concluída (pane 3, 46s)
+[282s] 📝 Review T015 → R1
+[294s] ✅ T010 concluída (pane 1, 41s)
+[300s] 📝 Review T015 concluída (R1)
+[300s] 📝 Review T010 → R1
+[305s] 📝 Review T008 concluída (R2)
+[311s] 📝 Review T009 concluída (R3)
+[342s] 📝 Review T010 concluída (R1)
+⚠️ TIMEOUT
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✅ CONCLUÍDO em 10001s (166m41s)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+=== Tempo por tarefa ===
+  T001 (pane 1): 160s
+  T002 (pane 2): 91s
+  T003 (pane 3): 77s
+  T004 (pane 4): 82s
+  T005 (pane 5): 108s
+  T006 (pane 1): 41s
+  T007 (pane 2): 31s
+  T008 (pane 1): 52s
+  T009 (pane 2): 52s
+  T010 (pane 1): 41s
+  T011 (pane 3): 128s
+  T012 (pane 4): 41s
+  T013 (pane 5): 79s
+  T014 (pane 4): 46s
+  T015 (pane 3): 46s
+
+Arquivos: Backend=10 Frontend=25 Total=35

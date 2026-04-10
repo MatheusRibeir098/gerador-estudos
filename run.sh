@@ -9,9 +9,9 @@ SESSION="gerador-estudos"
 TIMEOUT=9999
 POLL=3
 LOG="$PROJECT_DIR/orchestration/run.log"
-NUM_REVIEWERS=4
+NUM_REVIEWERS=1
 HAS_TESTER=true
-HAS_DOCUMENTER=false
+HAS_DOCUMENTER=true
 MIN_WAIT=8
 DOCS_DIR="$PROJECT_DIR/docs-gerador-estudos"
 echo "" > "$LOG"
@@ -305,7 +305,7 @@ while true; do
     if [ "$DONE_N" -eq "$TASK_COUNT" ] && [ "$ALL_REVIEWS_DONE" = true ] && [ "$TESTER_PHASE" -eq 0 ]; then
       TESTER_PHASE=1
       TESTER_DISPATCH_TIME=$NOW
-      safe_send "$TESTER_PANE" "[FASE-1] Leia os arquivos em $PROJECT_DIR/backend/src/ e $PROJECT_DIR/frontend/src/ pra entender o projeto. Depois rode 'cd $PROJECT_DIR/backend && npx tsc --noEmit' e 'cd $PROJECT_DIR/frontend && npx tsc --noEmit'. Verifique imports cruzados, rotas registradas no index.ts, endpoints do frontend vs backend. Se encontrar erros, corrija. APENAS execute, ZERO texto."
+      safe_send "$TESTER_PANE" "[FASE-1] Verificação de compilação TypeScript. Leia os arquivos modificados: backend/src/services/openai.ts, backend/src/validators/chat.ts, backend/src/routes/content.ts, frontend/src/types/content.ts, frontend/src/api/content.ts, frontend/src/components/ChatTutor.tsx, frontend/src/pages/ResultPage.tsx. Depois rode: 'cd $PROJECT_DIR/backend && npx tsc --noEmit 2>&1' e 'cd $PROJECT_DIR/frontend && npx tsc --noEmit 2>&1'. Se encontrar erros de tipo, corrija nos arquivos. APENAS execute, ZERO texto."
       echo "[${ELAPSED}s] 🧪 FASE 1 iniciada" | tee -a "$LOG"
     fi
 
@@ -316,12 +316,12 @@ while true; do
         if [ "$TESTER_PHASE" -eq 1 ]; then
           TESTER_PHASE=2
           TESTER_DISPATCH_TIME=$NOW
-          safe_send "$TESTER_PANE" "[FASE-2] Testes de API. Suba backend e frontend EXATAMENTE assim: 'tmux new-session -d -s servers' depois 'tmux send-keys -t servers:0 \"cd $PROJECT_DIR/backend && npx tsx src/index.ts\" Enter' depois 'tmux split-window -v -t servers:0' depois 'tmux send-keys -t servers:0.1 \"cd $PROJECT_DIR/frontend && npx vite --port 3000\" Enter'. Aguarde 5s. Teste TODOS os endpoints do orchestration/context.md com curl. PROIBIDO rodar tmux kill-server ou tmux kill-session sem -t servers. APENAS execute, ZERO texto."
+          safe_send "$TESTER_PANE" "[FASE-2] Testes de API. Suba o backend EXATAMENTE assim: 'tmux new-session -d -s servers' depois 'tmux send-keys -t servers:0 \"cd $PROJECT_DIR/backend && npx tsx src/server.ts\" Enter'. Aguarde 5s. Teste a nova rota com curl: primeiro crie um resumo de teste se necessário, depois 'curl -s -X POST http://localhost:3001/api/content/1/chat -H \"Content-Type: application/json\" -d \"{\\\"message\\\":\\\"O que é este conteúdo?\\\",\\\"history\\\":[]}\"'. Verifique que retorna {reply: ...}. Teste também 404 com lesson_id inexistente e 400 sem message. PROIBIDO rodar tmux kill-server ou tmux kill-session sem -t servers. APENAS execute, ZERO texto."
           echo "[${ELAPSED}s] 🧪 FASE 2 iniciada" | tee -a "$LOG"
         elif [ "$TESTER_PHASE" -eq 2 ]; then
           TESTER_PHASE=3
           TESTER_DISPATCH_TIME=$NOW
-          safe_send "$TESTER_PANE" "[FASE-3] Testes E2E com Playwright. Servidores já rodando. Crie testes em e2e/tests/ cobrindo navegação, CRUD. Rode com 'cd e2e && npx playwright test --project=chromium'. Se falhar, corrija. Ao terminar, 'tmux kill-session -t servers'. APENAS execute, ZERO texto, sem resumo."
+          safe_send "$TESTER_PANE" "[FASE-3] Testes E2E com Playwright. Suba o frontend se ainda não estiver rodando: 'tmux split-window -v -t servers:0' depois 'tmux send-keys -t servers:0.1 \"cd $PROJECT_DIR/frontend && npx vite\" Enter'. Aguarde 5s. Crie testes em $PROJECT_DIR/e2e/tests/chat-tutor.spec.ts cobrindo: (1) navegar para /subjects/1, (2) clicar na aba Chat Tutor, (3) verificar que o componente aparece com a mensagem de boas-vindas, (4) digitar uma pergunta e verificar que aparece na conversa. Rode com 'cd $PROJECT_DIR/e2e && npx playwright test --project=chromium'. Se falhar, corrija. Ao terminar, 'tmux kill-session -t servers'. APENAS execute, ZERO texto, sem resumo."
           echo "[${ELAPSED}s] 🧪 FASE 3 iniciada" | tee -a "$LOG"
         elif [ "$TESTER_PHASE" -eq 3 ]; then
           TESTER_PHASE=4
@@ -355,7 +355,7 @@ while true; do
     if [ "$DONE_N" -eq "$TASK_COUNT" ] && [ "$DOC_DEV_DONE" = false ] && [ -z "$DOC_CURRENT" ] && [ -z "$DOC_CTX_DEV_CURRENT" ] && [ -z "$DOC_CTX_REVIEW_CURRENT" ] && [ ${#DOC_CTX_DEV_QUEUE[@]} -eq 0 ]; then
       DOC_CURRENT="dev"
       DOC_DISPATCH_TIME=$NOW
-      safe_send "$DOCUMENTER_PANE" "[DOC-DEV] Projeto em $PROJECT_DIR. Crie o arquivo $DOCS_DIR/dev.md com fs_write. Conteúdo: cabeçalho (projeto, stack, data), uma seção por pane (tarefas, arquivos criados, tempo, decisões técnicas), resumo final (tempo total, arquivos, linhas). Leia orchestration/run.log e os arquivos de código. OBRIGATÓRIO criar o arquivo com fs_write. APENAS execute, ZERO texto."
+      safe_send "$DOCUMENTER_PANE" "[DOC-DEV] Projeto em $PROJECT_DIR. Crie o arquivo $DOCS_DIR/dev.md com fs_write. Conteúdo: cabeçalho (projeto StudyGen v2, stack, data), seção por tarefa (arquivo modificado, o que mudou, decisões técnicas), seção de arquitetura atual (como kiro-cli substitui OpenAI, como o chat tutor funciona end-to-end, fluxo de dados). Foco em contexto para futuras implementações. Leia orchestration/run.log e os arquivos de código. OBRIGATÓRIO criar o arquivo com fs_write. APENAS execute, ZERO texto."
       echo "[${ELAPSED}s] 📄 DOC-DEV iniciado" | tee -a "$LOG"
     fi
 
@@ -397,7 +397,7 @@ while true; do
     if [ "$DOC_TESTER_DONE" = true ] && [ "$DOC_GERAL_DONE" = false ] && [ -z "$DOC_CURRENT" ]; then
       DOC_CURRENT="geral"
       DOC_DISPATCH_TIME=$NOW
-      safe_send "$DOCUMENTER_PANE" "[DOC-GERAL] Projeto em $PROJECT_DIR. Leia $DOCS_DIR/dev.md, $DOCS_DIR/reviews.md e $DOCS_DIR/testes.md. Crie o arquivo $DOCS_DIR/README.md com fs_write. Conteúdo: visão geral do projeto, stack, arquitetura, métricas, qualidade do código, conclusão. OBRIGATÓRIO criar o arquivo com fs_write. APENAS execute, ZERO texto."
+      safe_send "$DOCUMENTER_PANE" "[DOC-GERAL] Projeto em $PROJECT_DIR. Leia $DOCS_DIR/dev.md, $DOCS_DIR/reviews.md e $DOCS_DIR/testes.md. Crie o arquivo $DOCS_DIR/README.md com fs_write. Conteúdo: visão geral das mudanças do StudyGen v2, como adicionar novas funcionalidades de IA (padrão para chamar kiro-cli), como adicionar novas rotas de chat, como adicionar novos componentes de UI, pontos de extensão identificados, limitações conhecidas. Foco em guia para futuras implementações. OBRIGATÓRIO criar o arquivo com fs_write. APENAS execute, ZERO texto."
       echo "[${ELAPSED}s] 📄 DOC-GERAL iniciado" | tee -a "$LOG"
     fi
 

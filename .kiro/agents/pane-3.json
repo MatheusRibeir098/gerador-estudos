@@ -10,8 +10,7 @@
     "file://.kiro/skills/_shared/seguranca.md",
     "file://.kiro/skills/_shared/git-conventions.md",
     "file://.kiro/skills/frontend/tailwind.md",
-    "file://.kiro/skills/frontend/typescript.md",
-    "file://.kiro/skills/frontend/node.md"
+    "file://.kiro/skills/frontend/typescript.md"
   ],
   "hooks": {},
   "toolsSettings": {},
