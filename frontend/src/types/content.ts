@@ -46,3 +46,20 @@ export interface QuizAttemptInput {
   correctAnswers: number;
   answers: { quizId: number; selectedIndex: number; correct: boolean }[];
 }
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatResponse {
+  reply: string;
+}
+
+export interface StudyContent {
+  id: number;
+  lessonId: number;
+  youtubeTitle: string;
+  content: string;
+  createdAt: string;
+}

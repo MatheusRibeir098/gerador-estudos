@@ -6,6 +6,7 @@ import {
   getExamRadar,
   submitQuizAttempt,
   getQuizAttempts,
+  getStudyContent,
 } from '../api/content';
 
 export function useStudyPlan(subjectId: number) {
@@ -35,4 +36,8 @@ export function useSubmitQuizAttempt() {
 
 export function useQuizAttempts(subjectId: number) {
   return useQuery({ queryKey: ['quiz-attempts', subjectId], queryFn: () => getQuizAttempts(subjectId), enabled: !!subjectId });
+}
+
+export function useStudyContent(subjectId: number) {
+  return useQuery({ queryKey: ['study-content', subjectId], queryFn: () => getStudyContent(subjectId), enabled: !!subjectId });
 }

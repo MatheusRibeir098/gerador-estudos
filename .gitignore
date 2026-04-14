@@ -1,6 +1,10 @@
 node_modules
 dist
 *.db
+*.db-shm
+*.db-wal
 orchestration/logs/*.log
+orchestration/logs/clean/
 orchestration/signals/*
 !orchestration/signals/.gitkeep
+e2e/test-results/

@@ -1,0 +1,13 @@
+{
+  "name": "monitor-fix",
+  "description": "Monitor — orquestra o loop dev→tester até o problema ser resolvido",
+  "prompt": "file://prompts/monitor-fix.md",
+  "tools": ["*"],
+  "mcpServers": {},
+  "allowedTools": [],
+  "resources": [],
+  "hooks": {},
+  "toolsSettings": {},
+  "includeMcpJson": false,
+  "model": "claude-opus-4-0-20250609"
+}

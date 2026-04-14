@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { getDb } from '../db';
 import { quizAttemptSchema } from '../validators/quiz';
+import { chatMessageSchema } from '../validators/chat';
+import { chatWithTutor } from '../services/openai';
 
 interface StudyPlanRow {
   id: number;
@@ -106,6 +108,32 @@ router.get('/subjects/:id/exam-radar', (req, res) => {
   });
 });
 
+interface StudyContentRow {
+  id: number;
+  lesson_id: number;
+  youtube_title: string;
+  content: string;
+  created_at: string;
+}
+
+router.get('/subjects/:id/study-content', (req, res) => {
+  const rows = getDb()
+    .prepare(
+      'SELECT sc.*, l.youtube_title FROM study_content sc JOIN lessons l ON sc.lesson_id = l.id WHERE sc.subject_id = ? ORDER BY l.order_index'
+    )
+    .all(req.params.id) as StudyContentRow[];
+
+  res.json({
+    data: rows.map((r) => ({
+      id: r.id,
+      lessonId: r.lesson_id,
+      youtubeTitle: r.youtube_title,
+      content: r.content,
+      createdAt: r.created_at,
+    })),
+  });
+});
+
 router.post('/subjects/:id/quiz-attempts', (req, res) => {
   const parsed = quizAttemptSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -149,6 +177,39 @@ router.get('/subjects/:id/quiz-attempts', (req, res) => {
       createdAt: r.created_at,
     })),
   });
+});
+
+interface SummaryContentRow {
+  content: string;
+}
+
+router.post('/content/:id/chat', async (req, res) => {
+  const parsed = chatMessageSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.errors[0].message });
+    return;
+  }
+
+  const row = getDb()
+    .prepare('SELECT content FROM summaries WHERE lesson_id = ?')
+    .get(req.params.id) as SummaryContentRow | undefined;
+
+  if (!row) {
+    res.status(404).json({ error: 'Resumo não encontrado para esta aula' });
+    return;
+  }
+
+  try {
+    const reply = await chatWithTutor({
+      summary: row.content,
+      history: parsed.data.history,
+      message: parsed.data.message,
+    });
+    res.json({ reply });
+  } catch (error) {
+    console.error('Erro no chat com tutor:', error);
+    res.status(500).json({ error: 'Erro ao processar resposta do tutor' });
+  }
 });
 
 export default router;

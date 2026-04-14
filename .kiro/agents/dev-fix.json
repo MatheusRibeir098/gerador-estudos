@@ -1,0 +1,23 @@
+{
+  "name": "dev-fix",
+  "description": "Dev — agente executor frontend specialist para fix/implementação",
+  "prompt": "file://prompts/dev-fix.md",
+  "tools": ["*"],
+  "mcpServers": {},
+  "allowedTools": [],
+  "resources": [],
+  "hooks": {},
+  "toolsSettings": {},
+  "includeMcpJson": false,
+  "model": "claude-opus-4-0-20250609",
+  "skills": [
+    "frontend/ui-design",
+    "frontend/responsive",
+    "frontend/animations",
+    "frontend/react-patterns",
+    "frontend/tailwind",
+    "frontend/typescript",
+    "_shared/clean-code",
+    "_shared/seguranca"
+  ]
+}

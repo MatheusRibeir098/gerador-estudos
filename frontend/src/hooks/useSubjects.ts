@@ -3,6 +3,7 @@ import {
   getSubjects,
   getSubject,
   createSubject,
+  createExamSubject,
   deleteSubject,
   getProcessingStatus,
 } from '../api/subjects';
@@ -27,6 +28,14 @@ export function useDeleteSubject() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteSubject,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subjects'] }),
+  });
+}
+
+export function useCreateExamSubject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createExamSubject,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subjects'] }),
   });
 }

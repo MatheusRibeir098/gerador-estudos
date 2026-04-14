@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { StudyPlan, Summary, QuizQuestion, ExamRadarItem, QuizAttempt, QuizAttemptInput } from '../types/content';
+import type { StudyPlan, Summary, QuizQuestion, ExamRadarItem, QuizAttempt, QuizAttemptInput, ChatMessage, ChatResponse, StudyContent } from '../types/content';
 
 export async function getStudyPlan(subjectId: number): Promise<StudyPlan> {
   const { data } = await api.get<StudyPlan>(`/subjects/${subjectId}/study-plan`);
@@ -28,5 +28,19 @@ export async function submitQuizAttempt(subjectId: number, input: QuizAttemptInp
 
 export async function getQuizAttempts(subjectId: number): Promise<QuizAttempt[]> {
   const { data } = await api.get<{ data: QuizAttempt[] }>(`/subjects/${subjectId}/quiz-attempts`);
+  return data.data;
+}
+
+export async function sendChatMessage(
+  lessonId: number,
+  message: string,
+  history: ChatMessage[]
+): Promise<string> {
+  const { data } = await api.post<ChatResponse>(`/content/${lessonId}/chat`, { message, history });
+  return data.reply;
+}
+
+export async function getStudyContent(subjectId: number): Promise<StudyContent[]> {
+  const { data } = await api.get<{ data: StudyContent[] }>(`/subjects/${subjectId}/study-content`);
   return data.data;
 }

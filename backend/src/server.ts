@@ -5,6 +5,8 @@ import { initDatabase } from './database';
 import { setDb } from './db';
 import subjectsRouter from './routes/subjects';
 import contentRouter from './routes/content';
+import examRouter from './routes/exam';
+import playlistRouter from './routes/playlist';
 
 setDb(initDatabase());
 
@@ -15,6 +17,8 @@ app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json({ limit: '10mb' }));
 
 app.use('/api/subjects', subjectsRouter);
+app.use('/api/subjects', examRouter);
+app.use('/api', playlistRouter);
 app.use('/api', contentRouter);
 
 const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {

@@ -8,15 +8,16 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<NonNullable<ButtonProps["variant"]>, string> = {
-  primary: "bg-[#3B82F6] text-white hover:bg-[#2563EB]",
-  secondary: "bg-white text-[#0F172A] border border-[#E2E8F0] hover:bg-[#F8FAFC]",
-  danger: "bg-[#EF4444] text-white hover:bg-red-600",
+  primary:
+    "bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-sm shadow-brand-500/25 hover:shadow-md hover:shadow-brand-500/30 hover:brightness-110 dark:from-brand-600 dark:to-brand-700 dark:shadow-brand-600/25",
+  secondary: "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700",
+  danger: "bg-red-500 text-white shadow-sm shadow-red-500/25 hover:bg-red-600",
 };
 
 const sizeStyles: Record<NonNullable<ButtonProps["size"]>, string> = {
-  sm: "px-3 py-1.5 text-sm",
-  md: "px-4 py-2",
-  lg: "px-6 py-3 text-lg",
+  sm: "px-4 py-2 text-sm",
+  md: "px-5 py-2.5",
+  lg: "px-7 py-3.5 text-lg",
 };
 
 export function Button({
@@ -31,7 +32,7 @@ export function Button({
   return (
     <button
       disabled={disabled || loading}
-      className={`rounded-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+      className={`rounded-xl font-medium transition-all duration-200 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
       {...props}
     >
       {loading ? (

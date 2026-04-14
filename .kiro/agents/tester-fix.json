@@ -1,0 +1,13 @@
+{
+  "name": "tester-fix",
+  "description": "Tester — verifica integridade, roda testes e valida execução",
+  "prompt": "file://prompts/tester-fix.md",
+  "tools": ["*"],
+  "mcpServers": {},
+  "allowedTools": [],
+  "resources": [],
+  "hooks": {},
+  "toolsSettings": {},
+  "includeMcpJson": false,
+  "model": "claude-opus-4-0-20250609"
+}

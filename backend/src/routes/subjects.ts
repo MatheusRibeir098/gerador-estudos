@@ -6,9 +6,11 @@ interface SubjectRow {
   id: number;
   title: string;
   description: string | null;
+  source_type: string;
   status: string;
   total_lessons: number;
   processed_lessons: number;
+  content_options: string;
   created_at: string;
   updated_at: string;
 }
@@ -38,9 +40,11 @@ function mapSubject(row: SubjectRow) {
     id: row.id,
     title: row.title,
     description: row.description,
+    sourceType: row.source_type,
     status: row.status,
     totalLessons: row.total_lessons,
     processedLessons: row.processed_lessons,
+    contentOptions: JSON.parse(row.content_options || '{"studyContent":true,"summary":true,"examRadar":true,"quiz":true}'),
     createdAt: row.created_at,
   };
 }
@@ -67,11 +71,12 @@ router.post('/', (req, res) => {
   }
 
   const { title, description, youtubeUrls } = parsed.data;
+  const contentOptions = req.body.contentOptions || { studyContent: true, summary: true, examRadar: true, quiz: true };
   const db = getDb();
 
   const result = db.prepare(
-    'INSERT INTO subjects (title, description, status, total_lessons) VALUES (?, ?, ?, ?)'
-  ).run(title, description ?? null, 'processing', youtubeUrls.length);
+    'INSERT INTO subjects (title, description, source_type, status, total_lessons, content_options) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(title, description ?? null, 'youtube', 'processing', youtubeUrls.length, JSON.stringify(contentOptions));
 
   const subjectId = result.lastInsertRowid as number;
   const insertLesson = db.prepare(
@@ -127,6 +132,43 @@ router.get('/:id/status', (req, res) => {
     return;
   }
 
+  // IDs de lessons que já têm resumo gerado
+  const summaryLessonIds = new Set(
+    (db.prepare('SELECT lesson_id FROM summaries WHERE subject_id = ?').all(req.params.id) as { lesson_id: number }[])
+      .map((r) => r.lesson_id)
+  );
+
+  if (subject.source_type === 'exam') {
+    const examSources = db.prepare(
+      'SELECT es.id, es.original_filename, es.order_index FROM exam_sources es WHERE es.subject_id = ? ORDER BY es.order_index'
+    ).all(req.params.id) as { id: number; original_filename: string | null; order_index: number }[];
+
+    const lessonsByOrder = new Map(
+      (db.prepare('SELECT id, order_index, status FROM lessons WHERE subject_id = ? ORDER BY order_index').all(req.params.id) as { id: number; order_index: number; status: string }[])
+        .map((l) => [l.order_index, l])
+    );
+
+    const lessonsOut = examSources.map((es) => {
+      const lesson = lessonsByOrder.get(es.order_index);
+      if (!lesson) return { id: es.id, status: 'pending' as const, youtubeTitle: es.original_filename, aiGenerated: false };
+      return { id: es.id, status: 'transcribed' as const, youtubeTitle: es.original_filename, aiGenerated: summaryLessonIds.has(lesson.id) };
+    });
+
+    const hasPending = lessonsOut.some((l) => l.status === 'pending');
+    const currentStep = hasPending ? 'pending' : 'completed';
+
+    res.json({
+      subjectId: subject.id,
+      status: subject.status,
+      sourceType: subject.source_type,
+      totalLessons: subject.total_lessons,
+      processedLessons: subject.processed_lessons,
+      currentStep,
+      lessons: lessonsOut,
+    });
+    return;
+  }
+
   const lessons = db.prepare(
     'SELECT id, status, youtube_title FROM lessons WHERE subject_id = ? ORDER BY order_index'
   ).all(req.params.id) as LessonStatusRow[];
@@ -138,6 +180,7 @@ router.get('/:id/status', (req, res) => {
   res.json({
     subjectId: subject.id,
     status: subject.status,
+    sourceType: subject.source_type,
     totalLessons: subject.total_lessons,
     processedLessons: subject.processed_lessons,
     currentStep,
@@ -145,6 +188,7 @@ router.get('/:id/status', (req, res) => {
       id: l.id,
       status: l.status,
       youtubeTitle: l.youtube_title,
+      aiGenerated: summaryLessonIds.has(l.id),
     })),
   });
 });

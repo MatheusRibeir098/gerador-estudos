@@ -20,20 +20,23 @@ export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalPr
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in dark:bg-black/60"
       onClick={onClose}
     >
       <div
-        className={`bg-white rounded-xl shadow-xl p-6 w-full mx-4 animate-scale-in ${sizeStyles[size]}`}
+        className={`bg-white rounded-2xl shadow-2xl w-full mx-4 animate-scale-in dark:bg-slate-800 ${sizeStyles[size]}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-[#0F172A]">{title}</h2>
-          <button onClick={onClose} className="text-[#64748B] hover:text-[#0F172A] transition-colors">
-            <X size={20} />
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h2>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors dark:text-slate-500 dark:hover:text-white dark:hover:bg-slate-700"
+          >
+            <X size={18} />
           </button>
         </div>
-        {children}
+        <div className="p-6">{children}</div>
       </div>
     </div>
   );
