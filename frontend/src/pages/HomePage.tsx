@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, GraduationCap, BookOpen, FileUp, Upload, X, Loader2, List } from 'lucide-react';
+import { Plus, Trash2, GraduationCap, BookOpen, FileUp, Upload, X, Loader2, List, BarChart3 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -15,6 +15,7 @@ import { resolvePlaylist } from '../api/subjects';
 import { formatDate } from '../utils/format';
 import type { Subject } from '../types/subject';
 import type { ContentOptions } from '../types/subject';
+import { useGamification } from '../hooks/useGamification';
 
 const statusConfig: Record<Subject['status'], { variant: 'success' | 'warning' | 'error' | 'default'; label: string }> = {
   completed: { variant: 'success', label: 'Concluído' },
@@ -35,6 +36,7 @@ export function HomePage() {
   const createSubject = useCreateSubject();
   const deleteSubject = useDeleteSubject();
   const createExamSubject = useCreateExamSubject();
+  const { addXP } = useGamification();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
@@ -73,6 +75,7 @@ export function HomePage() {
       contentOptions,
     });
     localStorage.setItem('studygen-options-' + result.id, JSON.stringify(contentOptions));
+    addXP(15, 'create-subject');
     setIsModalOpen(false);
     setTitle('');
     setDescription('');
@@ -91,6 +94,7 @@ export function HomePage() {
       contentOptions,
     });
     localStorage.setItem('studygen-options-' + result.id, JSON.stringify(contentOptions));
+    addXP(15, 'create-subject');
     setIsExamModalOpen(false);
     setExamTitle('');
     setExamDescription('');
@@ -158,6 +162,9 @@ export function HomePage() {
             <p className="text-slate-500 mt-1 dark:text-slate-400">Gerencie seus materiais de estudo</p>
           </div>
           <div className="flex items-center gap-3">
+            <Button variant="secondary" onClick={() => navigate('/dashboard')}>
+              <span className="flex items-center gap-2"><BarChart3 size={18} /> Meu Desempenho</span>
+            </Button>
             <Button variant="secondary" onClick={() => setIsExamModalOpen(true)}>
               <span className="flex items-center gap-2"><FileUp size={18} /> Estudar para Prova</span>
             </Button>

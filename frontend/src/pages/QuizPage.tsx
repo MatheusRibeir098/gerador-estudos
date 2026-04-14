@@ -9,6 +9,8 @@ import { ProgressBar } from "../components/ui/ProgressBar";
 import { Badge } from "../components/ui/Badge";
 import { ArrowLeft, CheckCircle, XCircle, RotateCcw, ArrowRight, Trophy } from "lucide-react";
 
+import { useGamification } from '../hooks/useGamification';
+
 const difficultyMap = {
   easy: { variant: "success" as const, label: "Fácil" },
   medium: { variant: "warning" as const, label: "Médio" },
@@ -22,6 +24,7 @@ export function QuizPage() {
   const { data: subject } = useSubject(subjectId);
   const { data: quizzes } = useQuizzes(subjectId);
   const submitAttempt = useSubmitQuizAttempt();
+  const { addXP } = useGamification();
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -52,6 +55,8 @@ export function QuizPage() {
       const finalAnswers = [...answers];
       const finalCorrect = finalAnswers.filter((a) => a.correct).length;
       submitAttempt.mutate({ subjectId, input: { totalQuestions: total, correctAnswers: finalCorrect, answers: finalAnswers } });
+      addXP(20, 'complete-quiz');
+      if (finalCorrect === total) addXP(100, 'perfect-quiz');
       setFinished(true);
     }
   }

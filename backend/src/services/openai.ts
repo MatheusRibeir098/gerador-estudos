@@ -248,6 +248,7 @@ Técnicas de ensino a aplicar:
 - Técnica Feynman: explicação ultra-simples
 - Chunking: blocos pequenos e digeríveis
 - Dual Coding: diagramas Mermaid e tabelas (NUNCA ASCII art com caracteres box-drawing)
+REGRAS PARA DIAGRAMAS MERMAID: Use graph TD (vertical) em vez de graph LR para diagramas com textos longos. Use textos CURTOS nas caixas (máximo 3-4 palavras por caixa). Se precisar de texto longo, coloque abaixo do diagrama como legenda. Sempre envolva o diagrama em \`\`\`mermaid. Use mindmap para mapas mentais e graph TD para fluxogramas. Exemplo: \`\`\`mermaid seguido de graph TD seguido de A[Conceito] --> B[Sub-conceito].
 - Mnemônicos: acrônimos e frases para memorizar
 - Active Recall: perguntas com details/summary${topicsContext}
 
@@ -272,6 +273,36 @@ Responda APENAS em JSON válido: { "content": "markdown completo" }`;
     return { content: JSON.parse(extractJson(raw)).content };
   } catch (error) {
     console.error('Erro ao gerar study content:', error);
+    throw error;
+  }
+}
+
+export async function generateFlashcards(
+  transcript: string,
+  count: number = 10,
+): Promise<Array<{ front: string; back: string; category: string }>> {
+  try {
+    const chunks = chunkTranscript(transcript);
+    const sample = chunks.slice(0, 2).join('\n\n[...]\n\n');
+    const raw = await callKiro(
+      `Você é um especialista em criar flashcards para repetição espaçada. IMPORTANTE: Gere TODO o conteúdo em português brasileiro, independente do idioma original. Com base no conteúdo abaixo, gere exatamente ${count} flashcards.
+
+REGRAS:
+1. Frente: pergunta curta e direta (máximo 15 palavras)
+2. Verso: resposta concisa e memorável (máximo 40 palavras)
+3. NUNCA referencie aula, professor, vídeo ou slides
+4. Categorias: concept (definição), fact (dado/fato), process (etapa/procedimento), comparison (diferença entre conceitos)
+5. Varie as categorias
+6. Use linguagem simples e direta
+7. Cada flashcard deve testar UM conceito específico
+
+Conteúdo: ${sample}
+
+Responda APENAS em JSON válido: { "flashcards": [{ "front": "...", "back": "...", "category": "concept|fact|process|comparison" }] }`,
+    );
+    return JSON.parse(extractJson(raw)).flashcards;
+  } catch (error) {
+    console.error('Erro ao gerar flashcards:', error);
     throw error;
   }
 }

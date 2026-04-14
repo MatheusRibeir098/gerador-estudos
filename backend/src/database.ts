@@ -105,6 +105,16 @@ export function initDatabase(): Database.Database {
       order_index INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS flashcards (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subject_id INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+      lesson_id INTEGER REFERENCES lessons(id) ON DELETE CASCADE,
+      front TEXT NOT NULL,
+      back TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'concept',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   // Migrations para bancos existentes

@@ -212,4 +212,9 @@ router.post('/content/:id/chat', async (req, res) => {
   }
 });
 
+router.get('/subjects/:id/flashcards', (req, res) => {
+  const rows = getDb().prepare('SELECT * FROM flashcards WHERE subject_id = ? ORDER BY id').all(req.params.id) as any[];
+  res.json({ data: rows.map((r: any) => ({ id: r.id, lessonId: r.lesson_id, front: r.front, back: r.back, category: r.category })) });
+});
+
 export default router;

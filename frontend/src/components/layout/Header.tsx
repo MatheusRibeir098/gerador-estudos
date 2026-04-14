@@ -1,8 +1,11 @@
 import { BookOpen, Moon, Sun } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
+import { XPBar } from "../XPBar";
 
 export function Header() {
   const { theme, toggle } = useTheme();
+  const navigate = useNavigate();
 
   return (
     <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-slate-200/60 dark:bg-slate-900/80 dark:border-slate-700/60">
@@ -14,6 +17,9 @@ export function Header() {
           <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">StudyGen</h1>
           <p className="text-slate-500 text-xs tracking-wide dark:text-slate-400">Transforme aulas em material de estudo</p>
         </div>
+        <button onClick={() => navigate('/dashboard')} className="hover:opacity-80 transition-opacity">
+          <XPBar />
+        </button>
         <button onClick={toggle} className="p-2 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label="Alternar tema">
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>

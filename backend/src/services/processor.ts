@@ -6,6 +6,7 @@ import {
   generateQuizzes,
   generateExamRadar,
   generateStudyContent,
+  generateFlashcards,
 } from './openai';
 
 interface LessonRow {
@@ -114,6 +115,14 @@ export async function processSubject(subjectId: number): Promise<void> {
           db.prepare('INSERT INTO study_content (lesson_id, subject_id, content) VALUES (?, ?, ?)').run(lesson.id, subjectId, studyContent.content);
         } catch (e) { console.error(`Erro ao gerar study content para lesson ${lesson.id}:`, e); }
         }
+
+        if (options.quiz !== false) {
+        try {
+          const flashcards = await generateFlashcards(lesson.transcript!, 10);
+          const insertFc = db.prepare('INSERT INTO flashcards (subject_id, lesson_id, front, back, category) VALUES (?, ?, ?, ?, ?)');
+          for (const fc of flashcards) insertFc.run(subjectId, lesson.id, fc.front, fc.back, fc.category);
+        } catch (e) { console.error(`Erro ao gerar flashcards para lesson ${lesson.id}:`, e); }
+        }
       } catch (error) {
         console.error(`Erro ao gerar conteúdo para lesson ${lesson.id}:`, error);
       }
@@ -198,6 +207,14 @@ export async function processExamSubject(subjectId: number): Promise<void> {
           const studyContent = await generateStudyContent(transcript, [...allPreviousTopics]);
           db.prepare('INSERT INTO study_content (lesson_id, subject_id, content) VALUES (?, ?, ?)').run(lessonId, subjectId, studyContent.content);
         } catch (e) { console.error(`Erro ao gerar study content para source ${i + 1}:`, e); }
+        }
+
+        if (options.quiz !== false) {
+        try {
+          const flashcards = await generateFlashcards(transcript, 10);
+          const insertFc = db.prepare('INSERT INTO flashcards (subject_id, lesson_id, front, back, category) VALUES (?, ?, ?, ?, ?)');
+          for (const fc of flashcards) insertFc.run(subjectId, lessonId, fc.front, fc.back, fc.category);
+        } catch (e) { console.error(`Erro ao gerar flashcards para source ${i + 1}:`, e); }
         }
 
         db.prepare("UPDATE subjects SET processed_lessons = processed_lessons + 1, updated_at = datetime('now') WHERE id = ?").run(subjectId);

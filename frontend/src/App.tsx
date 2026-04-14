@@ -4,6 +4,8 @@ import { HomePage } from './pages/HomePage';
 import { ProcessingPage } from './pages/ProcessingPage';
 import { ResultPage } from './pages/ResultPage';
 import { QuizPage } from './pages/QuizPage';
+import { FlashcardsPage } from './pages/FlashcardsPage';
+import { DashboardPage } from './pages/DashboardPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -19,6 +21,8 @@ export default function App() {
             <Route path="/subjects/:id" element={<ResultPage />} />
             <Route path="/subjects/:id/processing" element={<ProcessingPage />} />
             <Route path="/subjects/:id/quiz" element={<QuizPage />} />
+            <Route path="/subjects/:id/flashcards" element={<FlashcardsPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

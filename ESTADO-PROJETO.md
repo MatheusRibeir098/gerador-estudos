@@ -1,210 +1,141 @@
-# Estado Atual do Projeto — gerador-estudos
+# StudyGen — Estado Atual do Projeto
 
-> Última atualização: 2026-04-08
-> Localização: `~/multi-agents-framework/gerador-estudos/`
-
----
-
-## Visão Geral
-
-O projeto tem **duas versões**:
-
-1. **Interface Web (v1 — abandonada):** backend Express + frontend React gerados por multi-agents. Funcional mas depende de API key da OpenAI que o usuário não possui.
-2. **Script CLI (v2 — ativa):** `estudar.sh` que usa `youtube-transcript` para transcrever vídeos e `kiro-cli --no-interactive` como motor de IA para gerar material de estudo. Sem custo de API.
-
-A versão ativa é o **script CLI (`estudar.sh`)**.
+**Última atualização:** 2026-04-14
+**Último commit:** `9510823` (fix: renderização de diagramas Mermaid como SVG)
+**Pendente de commit:** 22 arquivos (features: leitura voz alta, flashcards SM-2, gamificação, dashboard, flashcards backend)
 
 ---
 
-## Estrutura de Arquivos
+## Stack
 
-```
-gerador-estudos/
-├── estudar.sh                    ← 🟢 SCRIPT PRINCIPAL (v2 ativa)
-│
-├── backend/                      ← 🟡 Interface web (v1, não usada)
-│   ├── src/
-│   │   ├── server.ts             ← Express API (porta 3001)
-│   │   ├── database.ts           ← SQLite init (better-sqlite3)
-│   │   ├── db.ts                 ← DB singleton
-│   │   ├── routes/
-│   │   │   ├── subjects.ts       ← CRUD de matérias
-│   │   │   └── content.ts        ← Processamento de conteúdo
-│   │   ├── services/
-│   │   │   ├── openai.ts         ← ⚠️ REQUER OPENAI_API_KEY (bloqueante)
-│   │   │   ├── processor.ts      ← Orquestra processamento
-│   │   │   └── transcription.ts  ← Transcrição via youtube-transcript
-│   │   └── validators/
-│   │       ├── subject.ts        ← Zod schemas
-│   │       └── quiz.ts           ← Zod schemas
-│   ├── data/studygen.db          ← SQLite database
-│   ├── transcriber.ts            ← Helper de transcrição (não usado)
-│   ├── transcriber.mjs           ← Helper de transcrição (não usado)
-│   ├── package.json              ← Deps: express, better-sqlite3, openai, youtube-transcript, zod
-│   └── node_modules/             ← ✅ Instalado (youtube-transcript usado pelo estudar.sh)
-│
-├── frontend/                     ← 🟡 Interface web (v1, não usada)
-│   ├── src/
-│   │   ├── App.tsx               ← Router principal
-│   │   ├── main.tsx              ← Entry point
-│   │   ├── pages/                ← HomePage, QuizPage, ResultPage, ProcessingPage
-│   │   ├── components/           ← UI components (Button, Card, Modal, etc.)
-│   │   ├── hooks/                ← useContent, useSubjects
-│   │   ├── api/                  ← client.ts (axios → localhost:3001), subjects.ts, content.ts
-│   │   ├── types/                ← content.ts, subject.ts
-│   │   └── utils/                ← format.ts, youtube.ts
-│   ├── vite.config.ts            ← Porta 5173
-│   ├── tailwind.config.js
-│   ├── package.json              ← Deps: react, vite, tailwind, tanstack-query, axios
-│   └── node_modules/             ← ✅ Instalado
-│
-├── e2e/                          ← Playwright (não usado)
-│   ├── package.json
-│   └── playwright.config.ts
-│
-├── orchestration/                ← Artefatos do multi-agents framework
-│   ├── context.md                ← Spec do projeto (gerada pelo spec agent)
-│   ├── tasks.json                ← 15 tarefas em waves (executadas com sucesso)
-│   ├── run.log                   ← Log da execução (15/15 tarefas ✅, timeout no tester)
-│   ├── logs/                     ← Logs por pane (pane-0 a pane-9)
-│   └── signals/                  ← Sinais de coordenação entre agents
-│
-├── .kiro/
-│   ├── agents/                   ← Agents JSON (pane-1..5, reviewer, tester)
-│   │   └── prompts/              ← Prompts dos agents (dev.md, reviewer.md, etc.)
-│   └── skills/                   ← Skills por domínio (_shared, backend, frontend)
-│
-├── setup.sh                      ← Cria sessão tmux (multi-agents, v1)
-├── run.sh                        ← Orquestra agents via tmux (multi-agents, v1)
-├── clean-logs.sh                 ← Limpa logs de execução
-├── README.md                     ← Docs do projeto (v1)
-└── .gitignore
-```
+| Camada | Tecnologias |
+|--------|-------------|
+| Backend | Express 4 + better-sqlite3 + Zod + Multer + pdf-parse + mammoth + tesseract.js |
+| Frontend | React 19 + Vite 6 + TanStack Query + Tailwind CSS 3 + Mermaid.js + supermemo (SM-2) |
+| IA | kiro-cli (chat --no-interactive) como processo filho |
+| Testes | Playwright (E2E) |
+| Banco | SQLite (data/studygen.db) |
 
----
+## Repositório GitHub
 
-## Script Principal: `estudar.sh`
+- **URL:** https://github.com/MatheusRibeir098/gerador-estudos (público)
+- **Branch:** master
+- **Template fix-loop:** https://github.com/MatheusRibeir098/multi-agents-framework (privado)
 
-### O que faz
-1. Lê links de YouTube de um arquivo `.txt`
-2. Transcreve cada vídeo usando `youtube-transcript` (sem API, grátis)
-3. Para cada vídeo, chama `kiro-cli --no-interactive` para gerar:
-   - `resumo.md` — resumo estruturado da aula
-   - `quiz.md` — 10 perguntas de múltipla escolha
-   - `radar-prova.md` — tópicos que o professor enfatizou
-4. Gera `plano-de-estudos.md` consolidando todas as aulas
+## Sessão tmux
 
-### Como rodar
-```bash
-cd ~/multi-agents-framework/gerador-estudos
-bash estudar.sh "/mnt/c/Users/Dati - 166/Desktop/videosAulaEADestatistica.txt"
-```
+- `servers:0.0` — Backend (porta 3001)
+- `servers:0.1` — Frontend Vite (porta 5173)
+- `fix-gerador:0.0` — Agent tester-fix
+- `fix-gerador:0.1` — Agent monitor-fix (este chat)
+- `fix-gerador:0.2` — Agent dev-fix
 
-### Saída
-```
-/mnt/c/Users/Dati - 166/Documents/estudos/
-├── video-1/
-│   ├── resumo.md
-│   ├── quiz.md
-│   └── radar-prova.md
-├── video-2/
-│   ├── ...
-├── ...
-├── video-12/
-│   ├── ...
-└── plano-de-estudos.md
-```
+## Banco de Dados (10 tabelas)
 
-### Cache
-- Transcrições ficam em `/tmp/studygen/trans_N.txt`
-- Se o arquivo de saída já existe, o script pula (idempotente)
-- Para regenerar um material, delete o `.md` correspondente e rode de novo
+| Tabela | Rows | Descrição |
+|--------|------|-----------|
+| subjects | 7 | Matérias (youtube + exam) com content_options e source_type |
+| lessons | 33 | Aulas/fontes (transcrições, status) |
+| exam_sources | 10 | Fontes de prova (PDFs, texto extraído) |
+| summaries | 31 | Resumos Feynman com keyTopics |
+| study_content | 22 | Material de estudo completo (slides) |
+| study_plans | 5 | Planos de estudo com repetição espaçada |
+| quizzes | 372 | Perguntas múltipla escolha |
+| exam_radar | 667 | Tópicos com probabilidade de cair na prova |
+| quiz_attempts | 6 | Histórico de tentativas |
+| flashcards | 0 | Flashcards gerados pela IA (tabela nova, ainda sem dados) |
 
-### Configurações importantes
-| Variável | Valor | Onde mudar |
-|---|---|---|
-| `OUTPUT_DIR` | `/mnt/c/Users/Dati - 166/Documents/estudos` | Linha 4 do `estudar.sh` |
-| `MAX_CHARS` | 40000 | Linha 7 — limite de chars por prompt (transcrições longas são truncadas) |
-| `TEMP_DIR` | `/tmp/studygen` | Linha 6 — cache de transcrições |
-| Timeout kiro-cli | 300s | Dentro da função `ask_kiro` |
+## Matérias Existentes
 
-### Dependências do script
-- `node` + `npx tsx` — para rodar o transcriber
-- `youtube-transcript` — pacote npm (instalado em `backend/node_modules/`)
-- `kiro-cli` — motor de IA (usa `--no-interactive`)
-- `sed`, `tr`, `grep` — utilitários bash padrão
+| ID | Título | Tipo | Aulas | Status |
+|----|--------|------|-------|--------|
+| 6 | 100 Palavras em Inglês | youtube | 1 | completed |
+| 8 | Trigonometria | youtube | 1 | completed |
+| 14 | Trabalho Matemática | exam | 1 | completed |
+| 24 | AWS Glue Tutorial | youtube | 7 | completed |
+| 25 | Estatística | youtube | 12 | completed (10/12 IA, 2 falharam) |
+| 26 | Slides Estatística | exam | 9 | completed |
+| 27 | Estudos Databricks | youtube | 2 | completed |
 
-### Bugs conhecidos / Limitações
-- Transcrições truncadas em 40k chars — vídeos muito longos perdem conteúdo do final
-- Arquivo de links do Windows precisa ter `\r` removido (já tratado no script com `tr -d '\r'`)
-- `kiro-cli` pode dar timeout em prompts muito grandes (300s limit)
-- Sem suporte a vídeos sem legenda/transcrição automática
+## Features Implementadas
 
----
+### Core
+- [x] Criar matéria via links YouTube (individuais ou playlist)
+- [x] Criar matéria via upload (PDF, DOCX, imagens com OCR, texto colado)
+- [x] Transcrição automática de vídeos (youtube-transcript + whisper fallback)
+- [x] Extração de texto de PDFs (pdf-parse), DOCX (mammoth), imagens (tesseract.js OCR)
+- [x] Resolução automática de playlists YouTube (youtube-search-api)
+- [x] Processamento assíncrono com polling de status
+- [x] Estimativa de tempo restante na ProcessingPage
 
-## Interface Web (v1 — não usada)
+### Geração de Conteúdo IA
+- [x] Resumos com Técnica Feynman + keyTopics
+- [x] Material de estudo completo (otimizado para slides)
+- [x] Quizzes múltipla escolha (sem referência a aula/professor)
+- [x] Radar de prova (tópicos com relevância alta/média/baixa)
+- [x] Plano de estudos com repetição espaçada
+- [x] Chat Tutor por aula + opção "Todas as aulas"
+- [x] Flashcards dedicados via IA (front/back/category) — NOVO, sem dados ainda
+- [x] Anti-repetição: contexto de tópicos anteriores entre slides
+- [x] Diagramas Mermaid em vez de ASCII art
+- [x] Checkboxes para escolher o que gerar (study, summary, radar, quiz, plan)
 
-### Por que foi abandonada
-O backend usa `openai` SDK que requer `OPENAI_API_KEY`. O usuário não tem chave da OpenAI. Foi considerado migrar para Amazon Bedrock (o usuário tem acesso AWS via Daticloud SSO), mas o custo seria na fatura da empresa. Optou-se pelo script CLI usando kiro-cli como motor de IA (sem custo adicional).
+### Frontend — UX
+- [x] Design system completo (Card, Button, Badge, Modal, Input, etc.)
+- [x] Dark mode com toggle e persistência
+- [x] Área de Estudo em slides com modo foco (cards minimizados → expand)
+- [x] Progresso de leitura persistente (localStorage por subject)
+- [x] Auto-marcar como lido ao navegar entre slides
+- [x] Leitura em voz alta (Web Speech API) — Ouvir/Pausar/Parar
+- [x] Flashcards com repetição espaçada (algoritmo SM-2 via supermemo)
+- [x] Gamificação: XP, streaks, conquistas, níveis
+- [x] Dashboard de desempenho (XP, streak, conquistas, histórico)
+- [x] Quiz com escolha de quantidade + embaralhamento
+- [x] Diagramas Mermaid renderizados como SVG (com tema customizado)
+- [x] preprocessMarkdown: auto-detecta mermaid sem fences e ASCII art
+- [x] Títulos descritivos (cleanTitle com fallback keyTopic → H2 → filename)
+- [x] Botão scroll-to-top flutuante
+- [x] Responsivo + acessível
 
-### Se quiser reativar
-1. Obter uma `OPENAI_API_KEY`
-2. Subir backend: `cd backend && OPENAI_API_KEY=sk-... pnpm dev` (porta 3001)
-3. Subir frontend: `cd frontend && pnpm dev` (porta 5173)
-4. Ou via tmux:
-```bash
-tmux new-session -d -s studygen -n backend -c backend
-tmux send-keys -t studygen:backend 'OPENAI_API_KEY=sk-... pnpm dev' Enter
-tmux new-window -t studygen -n frontend -c frontend
-tmux send-keys -t studygen:frontend 'pnpm dev' Enter
-```
+### Backend — Otimizações
+- [x] Try/catch isolados por geração de IA
+- [x] Fix cleanKiroOutput (preserva JSON em vez de descartar)
+- [x] Migration automática para bancos existentes (source_type, content_options)
+- [x] content_options: pula gerações desmarcadas pelo usuário
 
-### Alternativa Bedrock (não implementada)
-O usuário tem acesso ao Bedrock (conta `396287094730`, user `matheus-cli`). Modelos Claude disponíveis em `us-east-1`. Para migrar:
-- Instalar `@aws-sdk/client-bedrock-runtime` no backend
-- Reescrever `backend/src/services/openai.ts` para usar Bedrock
-- Modelo sugerido: `anthropic.claude-3-haiku-20240307-v1:0` (mais barato)
+## Bugs Conhecidos / Limitações
 
----
+- **Velocidade:** Processamento sequencial via kiro-cli (~4 min por aula). Paralelização não funciona com kiro-cli (output garbled).
+- **kiro-cli como dependência:** Qualquer pessoa que clonar precisa ter kiro-cli instalado e autenticado.
+- **Flashcards backend:** Tabela criada mas ainda sem dados (matérias existentes foram geradas antes da feature).
+- **Matérias antigas:** Conteúdo gerado antes das melhorias (anti-repetição, Mermaid, prompts otimizados) pode ter repetição e ASCII art.
+- **yt-dlp não instalado:** Fallback de transcrição via Whisper não funciona. Títulos de vídeos YouTube podem vir null.
 
-## Execução Multi-Agents (histórico)
+## Pendente de Commit
 
-A interface web foi gerada pelo framework multi-agents em 2026-04-07:
-- 15 tarefas executadas com 5 dev panes + 4 reviewers
-- Tempo total: ~167 minutos
-- Todas as tarefas concluídas ✅
-- Timeout no tester (não chegou a executar testes)
-- 35 arquivos gerados (10 backend + 25 frontend)
+Arquivos modificados não commitados (22 arquivos):
+- Feature: Leitura em voz alta (useSpeech hook + botões na ResultPage)
+- Feature: Flashcards SM-2 (FlashcardsPage + supermemo + rota)
+- Feature: Gamificação (useGamification + XPBar + integração em todas as páginas)
+- Feature: Dashboard de desempenho (DashboardPage + rota)
+- Feature: Flashcards backend (tabela + generateFlashcards + rota API)
+- Melhoria: Prompts Mermaid com regras de formatação
 
----
+## Skills (12 no template fix-loop)
 
-## Resultado da Execução do `estudar.sh`
+### Frontend (8)
+- ui-design.md, responsive.md, animations.md, react-patterns.md
+- tailwind.md, typescript.md, dark-mode.md, content-ux.md
 
-Executado em 2026-04-08 com 12 vídeos de Estatística EAD:
+### Shared (4)
+- clean-code.md, seguranca.md, lessons-learned.md, file-upload.md
 
-| Vídeo | ID YouTube | Transcrição | Resumo | Quiz | Radar |
-|-------|-----------|-------------|--------|------|-------|
-| 1 | EImDZektREM | 71.326 chars | ✅ 5.362 | ✅ 6.520 | ✅ 6.291 |
-| 2 | ZbLwNGrRHdw | 45.994 chars | ✅ 6.334 | ✅ 5.168 | ✅ 6.620 |
-| 3 | oJ_zyIZWCXM | 66.105 chars | ✅ 5.278 | ✅ 5.156 | ✅ 9.848 |
-| 4 | WEbaLrk4SuQ | 49.864 chars | ✅ 5.076 | ✅ 5.558 | ✅ 6.213 |
-| 5 | P0guFp7MMIU | 70.783 chars | ✅ 6.419 | ✅ 7.367 | ✅ 7.973 |
-| 6 | _4qKaMvzCj0 | 52.756 chars | ✅ 3.875 | ✅ 5.743 | ✅ 6.939 |
-| 7 | ayUo4EPRLPc | 66.858 chars | ✅ 5.111 | ✅ 7.662 | ✅ 7.108 |
-| 8 | MOZmiXUJZR4 | 62.997 chars | ✅ 5.530 | ✅ 6.470 | ✅ 6.982 |
-| 9 | dlatyb9EJ8w | 64.322 chars | ✅ 6.233 | ✅ 7.363 | ✅ 6.558 |
-| 10 | KvF11VdlNSg | 68.007 chars | ✅ 5.714 | ✅ 6.846 | ✅ 8.252 |
-| 11 | foypPNrxo-k | 59.658 chars | ✅ 5.255 | ✅ 6.095 | ✅ 6.172 |
-| 12 | mZobdcvnIZ0 | 40.303 chars | ✅ 4.403 | ✅ 5.985 | ✅ 6.179 |
+## Ideias Futuras
 
-Plano de estudos consolidado: ✅ 10.348 chars
-
----
-
-## Próximos Passos Possíveis
-
-1. **V2 com análise visual:** instalar `yt-dlp` + `ffmpeg`, extrair frames dos vídeos, descrever slides/quadro do professor
-2. **Migrar para Bedrock:** reescrever `openai.ts` para usar AWS Bedrock (sem custo pessoal)
-3. **Melhorar truncamento:** dividir transcrições longas em chunks e processar cada um, depois consolidar
-4. **Adicionar flashcards:** gerar cards Anki-style para revisão espaçada
-5. **Interface web funcional:** reativar frontend com Bedrock no backend
+- [ ] Trocar kiro-cli pela API da OpenAI diretamente (paralelização real, structured outputs, streaming)
+- [ ] Exportar flashcards para Anki (.apkg)
+- [ ] Notificações de revisão pendente (flashcards due)
+- [ ] Mapa de calor de dias estudados (estilo GitHub contributions)
+- [ ] Gráfico de evolução nos quizzes ao longo do tempo
+- [ ] KaTeX para fórmulas matemáticas renderizadas
+- [ ] PWA (Progressive Web App) para uso offline

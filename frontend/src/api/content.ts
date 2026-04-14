@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { StudyPlan, Summary, QuizQuestion, ExamRadarItem, QuizAttempt, QuizAttemptInput, ChatMessage, ChatResponse, StudyContent } from '../types/content';
+import type { StudyPlan, Summary, QuizQuestion, ExamRadarItem, QuizAttempt, QuizAttemptInput, ChatMessage, ChatResponse, StudyContent, Flashcard } from '../types/content';
 
 export async function getStudyPlan(subjectId: number): Promise<StudyPlan> {
   const { data } = await api.get<StudyPlan>(`/subjects/${subjectId}/study-plan`);
@@ -42,5 +42,10 @@ export async function sendChatMessage(
 
 export async function getStudyContent(subjectId: number): Promise<StudyContent[]> {
   const { data } = await api.get<{ data: StudyContent[] }>(`/subjects/${subjectId}/study-content`);
+  return data.data;
+}
+
+export async function getFlashcards(subjectId: number): Promise<Flashcard[]> {
+  const { data } = await api.get<{ data: Flashcard[] }>(`/subjects/${subjectId}/flashcards`);
   return data.data;
 }

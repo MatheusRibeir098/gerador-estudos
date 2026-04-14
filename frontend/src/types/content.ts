@@ -63,3 +63,11 @@ export interface StudyContent {
   content: string;
   createdAt: string;
 }
+
+export interface Flashcard {
+  id: number;
+  lessonId: number | null;
+  front: string;
+  back: string;
+  category: string;
+}

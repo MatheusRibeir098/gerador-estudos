@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BookOpen, FileText, AlertTriangle, Download, Brain, MessageCircle, GraduationCap, ChevronLeft, ChevronRight, ArrowUp, Check } from 'lucide-react';
+import { ArrowLeft, BookOpen, FileText, AlertTriangle, Download, Brain, MessageCircle, GraduationCap, ChevronLeft, ChevronRight, ArrowUp, Check, Volume2, Pause, Square, Layers, Trophy } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ReactMarkdown from 'react-markdown';
@@ -14,6 +14,8 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import ChatTutor from '../components/ChatTutor';
 import MermaidBlock from '../components/MermaidBlock';
+import { useSpeech } from '../hooks/useSpeech';
+import { useGamification } from '../hooks/useGamification';
 import type { ContentOptions } from '../types/subject';
 
 type Tab = 'study' | 'plan' | 'summaries' | 'radar' | 'chat';
@@ -170,6 +172,8 @@ export function ResultPage() {
   const { data: summaries } = useSummaries(subjectId);
   const { data: examRadar } = useExamRadar(subjectId);
   const { data: studyContent } = useStudyContent(subjectId);
+  const { speaking, paused, speak, pause, resume, stop } = useSpeech();
+  const { addXP, toast } = useGamification();
 
   const sortedRadar = examRadar?.slice().sort((a, b) => relevanceOrder[a.relevance] - relevanceOrder[b.relevance]);
 
@@ -204,12 +208,14 @@ export function ResultPage() {
   function toggleRead(key: string) {
     setReadSections(prev => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      if (next.has(key)) next.delete(key);
+      else { next.add(key); addXP(10, 'read-slide'); }
       return next;
     });
   }
 
   function goToSlide(itemId: number, index: number, totalSlides: number) {
+    stop();
     const currentIdx = currentSlides[itemId] || 0;
     const currentKey = itemId + '-' + currentIdx;
     if (!readSections.has(currentKey)) {
@@ -254,6 +260,9 @@ export function ResultPage() {
                 <Brain size={16} /> Quiz
               </Button>
             )}
+            <Button variant="secondary" onClick={() => navigate(`/subjects/${subjectId}/flashcards`)} className="flex items-center gap-2">
+              <Layers size={16} /> Flashcards
+            </Button>
             <Button variant="secondary" onClick={handleExportPdf} className="flex items-center gap-2">
               <Download size={16} /> Exportar PDF
             </Button>
@@ -305,7 +314,7 @@ export function ResultPage() {
                 if (expandedItem === item.id) {
                   return (
                     <div key={item.id} className="animate-fade-in">
-                      <button onClick={() => setExpandedItem(null)}
+                      <button onClick={() => { stop(); setExpandedItem(null); }}
                         className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg px-3 py-1.5 -ml-3 mb-4 transition-colors">
                         <ChevronLeft size={16} /> Voltar à lista
                       </button>
@@ -334,6 +343,24 @@ export function ResultPage() {
                                 </div>
                                 <div className="flex items-center gap-3">
                                   <span className="text-xs font-medium text-slate-400">{readCount}/{sections.length} lidas</span>
+                                  {!speaking ? (
+                                    <button onClick={() => speak(sections[slideIndex].content)}
+                                      className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-brand-500 transition-colors"
+                                      aria-label="Ouvir conteúdo">
+                                      <Volume2 size={14} /> Ouvir
+                                    </button>
+                                  ) : (
+                                    <>
+                                      <button onClick={paused ? resume : pause}
+                                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-brand-50 dark:bg-brand-900/30 text-brand-600 transition-colors">
+                                        <Pause size={14} /> {paused ? 'Continuar' : 'Pausar'}
+                                      </button>
+                                      <button onClick={stop}
+                                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-red-500 transition-colors">
+                                        <Square size={14} /> Parar
+                                      </button>
+                                    </>
+                                  )}
                                   <button onClick={() => toggleRead(item.id + '-' + slideIndex)}
                                     className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
                                       readSections.has(item.id + '-' + slideIndex) ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30' : 'bg-slate-100 text-slate-500 hover:text-brand-500 dark:bg-slate-700 dark:text-slate-400'
@@ -365,6 +392,9 @@ export function ResultPage() {
                                 if (slideIndex === sections.length - 1) {
                                   const key = item.id + '-' + slideIndex;
                                   if (!readSections.has(key)) toggleRead(key);
+                                  // Check if all sections now read
+                                  const allRead = sections.every((_, j) => j === slideIndex || readSections.has(item.id + '-' + j));
+                                  if (allRead) addXP(50, 'complete-chunk');
                                 } else {
                                   goToSlide(item.id, slideIndex + 1, sections.length);
                                 }
@@ -559,6 +589,11 @@ export function ResultPage() {
           )}
         </div>
       </main>
+      {toast && (
+        <div className="fixed bottom-20 right-6 z-50 bg-amber-500 text-white px-4 py-3 rounded-xl shadow-lg animate-slide-up flex items-center gap-2">
+          <Trophy size={20} /> Nova conquista: {toast}!
+        </div>
+      )}
       {showScrollTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}

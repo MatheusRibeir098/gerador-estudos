@@ -7,6 +7,7 @@ import {
   submitQuizAttempt,
   getQuizAttempts,
   getStudyContent,
+  getFlashcards,
 } from '../api/content';
 
 export function useStudyPlan(subjectId: number) {
@@ -40,4 +41,8 @@ export function useQuizAttempts(subjectId: number) {
 
 export function useStudyContent(subjectId: number) {
   return useQuery({ queryKey: ['study-content', subjectId], queryFn: () => getStudyContent(subjectId), enabled: !!subjectId });
+}
+
+export function useFlashcards(subjectId: number) {
+  return useQuery({ queryKey: ['flashcards', subjectId], queryFn: () => getFlashcards(subjectId), enabled: !!subjectId });
 }
