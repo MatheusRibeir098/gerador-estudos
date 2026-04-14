@@ -50,7 +50,7 @@ export function HomePage() {
   const [examFiles, setExamFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loadingPlaylist, setLoadingPlaylist] = useState(false);
-  const defaultContentOptions: ContentOptions = { studyContent: true, summary: true, examRadar: true, quiz: true };
+  const defaultContentOptions: ContentOptions = { studyContent: true, summary: true, examRadar: true, quiz: true, studyPlan: true };
   const [contentOptions, setContentOptions] = useState<ContentOptions>(defaultContentOptions);
 
   const validUrls = useMemo(() => parseYoutubeUrls(linksText), [linksText]);
@@ -133,6 +133,7 @@ export function HomePage() {
           { key: 'summary' as const, label: 'Resumos' },
           { key: 'examRadar' as const, label: 'Radar de Prova' },
           { key: 'quiz' as const, label: 'Quiz' },
+          { key: 'studyPlan' as const, label: 'Plano de Estudos' },
         ]).map(opt => (
           <label key={opt.key} className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
             <input type="checkbox" checked={contentOptions[opt.key]} onChange={e => setContentOptions(prev => ({ ...prev, [opt.key]: e.target.checked }))}

@@ -119,11 +119,13 @@ export async function processSubject(subjectId: number): Promise<void> {
       }
     }
 
-    const studyPlan = await generateStudyPlan(summariesData);
-    db.prepare('INSERT INTO study_plans (subject_id, content) VALUES (?, ?)').run(
-      subjectId,
-      studyPlan
-    );
+    if (options.studyPlan !== false) {
+      const studyPlan = await generateStudyPlan(summariesData);
+      db.prepare('INSERT INTO study_plans (subject_id, content) VALUES (?, ?)').run(
+        subjectId,
+        studyPlan
+      );
+    }
 
     db.prepare(
       "UPDATE subjects SET status = 'completed', updated_at = datetime('now') WHERE id = ?"
@@ -205,7 +207,7 @@ export async function processExamSubject(subjectId: number): Promise<void> {
       }
     }
 
-    if (summariesData.length > 0) {
+    if (summariesData.length > 0 && options.studyPlan !== false) {
       const studyPlan = await generateStudyPlan(summariesData);
       db.prepare('INSERT INTO study_plans (subject_id, content) VALUES (?, ?)').run(subjectId, studyPlan);
     }

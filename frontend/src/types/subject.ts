@@ -43,6 +43,7 @@ export interface ContentOptions {
   summary: boolean;
   examRadar: boolean;
   quiz: boolean;
+  studyPlan: boolean;
 }
 
 export interface ProcessingStatus {

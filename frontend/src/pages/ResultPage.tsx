@@ -50,16 +50,46 @@ const markdownComponents = {
   },
 };
 
-function wrapAsciiArt(markdown: string): string {
+function preprocessMarkdown(markdown: string): string {
+  const mermaidKeywords = /^(graph|flowchart|mindmap|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitgraph|journey)\b/;
   const boxChars = /[┌┐└┘├┤┬┴┼─│╔╗╚╝╠╣╦╩╬═║]/;
   const lines = markdown.split('\n');
   const result: string[] = [];
   let inAsciiBlock = false;
   let inCodeBlock = false;
+  let inMermaidBlock = false;
 
-  for (const line of lines) {
-    if (line.startsWith('```')) inCodeBlock = !inCodeBlock;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith('```')) {
+      if (inMermaidBlock) { inMermaidBlock = false; inCodeBlock = true; }
+      else { inCodeBlock = !inCodeBlock; }
+      result.push(line);
+      continue;
+    }
     if (inCodeBlock) { result.push(line); continue; }
+
+    // Detect unfenced mermaid: line is exactly 'mermaid' and next line starts with a mermaid keyword
+    if (!inMermaidBlock && line.trim() === 'mermaid' && i + 1 < lines.length && mermaidKeywords.test(lines[i + 1].trim())) {
+      if (inAsciiBlock) { result.push('```'); inAsciiBlock = false; }
+      result.push('```mermaid');
+      inMermaidBlock = true;
+      continue;
+    }
+
+    // End unfenced mermaid block
+    if (inMermaidBlock) {
+      const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
+      const isEnd = line.startsWith('## ') || line.startsWith('### ')
+        || (line.trim() === '' && i + 1 < lines.length && nextLine.trim() === '')
+        || (line.trim() === '' && i + 1 < lines.length && !mermaidKeywords.test(nextLine.trim()) && !nextLine.startsWith(' ') && nextLine.trim() !== '' && !nextLine.includes('-->') && !nextLine.includes('---') && !nextLine.trim().startsWith('subgraph') && !nextLine.trim().startsWith('end'));
+      if (isEnd) {
+        result.push('```');
+        inMermaidBlock = false;
+      }
+      result.push(line);
+      continue;
+    }
 
     const hasBox = boxChars.test(line);
     if (hasBox && !inAsciiBlock) {
@@ -72,6 +102,7 @@ function wrapAsciiArt(markdown: string): string {
     result.push(line);
   }
   if (inAsciiBlock) result.push('```');
+  if (inMermaidBlock) result.push('```');
   return result.join('\n');
 }
 
@@ -130,8 +161,8 @@ export function ResultPage() {
     catch { return {}; }
   });
   const [contentOptions] = useState<ContentOptions>(() => {
-    try { const saved = localStorage.getItem('studygen-options-' + subjectId); return saved ? JSON.parse(saved) : { studyContent: true, summary: true, examRadar: true, quiz: true }; }
-    catch { return { studyContent: true, summary: true, examRadar: true, quiz: true }; }
+    try { const saved = localStorage.getItem('studygen-options-' + subjectId); return saved ? JSON.parse(saved) : { studyContent: true, summary: true, examRadar: true, quiz: true, studyPlan: true }; }
+    catch { return { studyContent: true, summary: true, examRadar: true, quiz: true, studyPlan: true }; }
   });
 
   const { data: subject } = useSubject(subjectId);
@@ -146,6 +177,7 @@ export function ResultPage() {
     if (t.key === 'study') return contentOptions.studyContent;
     if (t.key === 'summaries') return contentOptions.summary;
     if (t.key === 'radar') return contentOptions.examRadar;
+    if (t.key === 'plan') return contentOptions.studyPlan !== false;
     return true;
   });
 
@@ -263,7 +295,7 @@ export function ResultPage() {
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                           <GraduationCap size={22} className="text-brand-500" /> {cleanTitle(item.youtubeTitle, i, sections[0]?.title)}
                         </h3>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} className={proseClasses} components={markdownComponents}>{wrapAsciiArt(item.content)}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} className={proseClasses} components={markdownComponents}>{preprocessMarkdown(item.content)}</ReactMarkdown>
                       </Card>
                     </div>
                   );
@@ -314,7 +346,7 @@ export function ResultPage() {
                             </div>
                             <div className="flex-1 overflow-y-auto overscroll-contain min-h-0 pr-2" key={slideIndex}>
                               <div className="animate-fade-in">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} className={proseClasses} components={markdownComponents}>{wrapAsciiArt(sections[slideIndex].content)}</ReactMarkdown>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} className={proseClasses} components={markdownComponents}>{preprocessMarkdown(sections[slideIndex].content)}</ReactMarkdown>
                               </div>
                             </div>
                             <div className="shrink-0 pt-4 border-t border-slate-200 dark:border-slate-700 mt-4 flex items-center justify-between">
@@ -382,7 +414,7 @@ export function ResultPage() {
           {activeTab === 'plan' && studyPlan && (
             <div className="animate-fade-in">
               <Card>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} className={proseClasses} components={markdownComponents}>{wrapAsciiArt(studyPlan.content)}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} className={proseClasses} components={markdownComponents}>{preprocessMarkdown(studyPlan.content)}</ReactMarkdown>
               </Card>
             </div>
           )}
@@ -401,7 +433,7 @@ export function ResultPage() {
                       </button>
                       <Card>
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-3">{summary.keyTopics?.[0] || cleanTitle(summary.youtubeTitle, i)}</h3>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} className={proseClasses} components={markdownComponents}>{wrapAsciiArt(summary.content)}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} className={proseClasses} components={markdownComponents}>{preprocessMarkdown(summary.content)}</ReactMarkdown>
                         {summary.keyTopics.length > 0 && (
                           <div className="flex flex-wrap gap-2 mt-4">
                             {summary.keyTopics.map((topic) => (

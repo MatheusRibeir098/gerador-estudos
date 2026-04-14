@@ -1,8 +1,14 @@
 {
   "projeto": "gerador-estudos-v2",
   "panes": {
-    "1": { "nome": "back-1", "dir": "backend" },
-    "3": { "nome": "front-1", "dir": "frontend" }
+    "1": {
+      "nome": "back-1",
+      "dir": "backend"
+    },
+    "2": {
+      "nome": "front-1",
+      "dir": "frontend"
+    }
   },
   "tarefas": [
     {
@@ -14,25 +20,32 @@
     {
       "id": "T002",
       "pane": 1,
-      "deps": ["T001"],
+      "deps": [
+        "T001"
+      ],
       "prompt": "Você está trabalhando no projeto existente em ~/multi-agents-framework/gerador-estudos/backend/.\n\nUsando a função `chatWithTutor` que você acabou de criar em src/services/openai.ts, faça duas coisas:\n\n**1. Criar src/validators/chat.ts** (arquivo novo):\n```typescript\nimport { z } from 'zod';\n\nexport const chatMessageSchema = z.object({\n  message: z.string().min(1, 'message é obrigatório'),\n  history: z.array(z.object({\n    role: z.enum(['user', 'assistant']),\n    content: z.string(),\n  })).optional().default([]),\n});\n```\n\n**2. Adicionar rota em src/routes/content.ts** — adicionar ao final do arquivo, antes de `export default router`:\n\n```typescript\nrouter.post('/content/:id/chat', async (req, res) => {\n  // 1. Validar body com chatMessageSchema\n  // 2. Buscar resumo: SELECT content FROM summaries WHERE lesson_id = ?\n  //    usando req.params.id como lesson_id\n  // 3. Se não encontrar: res.status(404).json({ error: 'Resumo não encontrado para esta aula' })\n  // 4. Chamar chatWithTutor({ summary: row.content, history: parsed.data.history, message: parsed.data.message })\n  // 5. Retornar res.json({ reply: resultado })\n  // 6. Em caso de erro: res.status(500).json({ error: 'Erro ao processar resposta do tutor' })\n});\n```\n\nDetalhes de implementação:\n- Importar `chatMessageSchema` de `'../validators/chat'`\n- Importar `chatWithTutor` de `'../services/openai'`\n- A rota é `async` pois chama kiro-cli\n- O `:id` na rota é o `lesson_id` (não subject_id)\n- Usar `try/catch` para capturar erros do chatWithTutor\n- Adicionar interface local para o row do banco: `interface SummaryContentRow { content: string; }`\n\nNÃO altere nenhuma rota existente. NÃO altere server.ts. NÃO instale dependências."
     },
     {
       "id": "T003",
-      "pane": 3,
+      "pane": 2,
       "deps": [],
       "prompt": "Leia o arquivo ../orchestration/context.md para entender o projeto.\n\nVocê está trabalhando no projeto existente em ~/multi-agents-framework/gerador-estudos/frontend/.\n\nFaça duas adições:\n\n**1. Adicionar tipos em src/types/content.ts** — adicionar ao final do arquivo existente (NÃO reescrever, apenas adicionar):\n```typescript\nexport interface ChatMessage {\n  role: 'user' | 'assistant';\n  content: string;\n}\n\nexport interface ChatResponse {\n  reply: string;\n}\n```\n\n**2. Adicionar função em src/api/content.ts** — adicionar ao final do arquivo existente (NÃO reescrever, apenas adicionar):\n- Importar os novos tipos: adicionar `ChatMessage, ChatResponse` ao import existente de `'../types/content'`\n- Adicionar a função:\n```typescript\nexport async function sendChatMessage(\n  lessonId: number,\n  message: string,\n  history: ChatMessage[]\n): Promise<string> {\n  const { data } = await api.post<ChatResponse>(`/content/${lessonId}/chat`, { message, history });\n  return data.reply;\n}\n```\n\nNÃO altere nenhuma função existente. NÃO instale dependências."
     },
     {
       "id": "T004",
-      "pane": 3,
-      "deps": ["T003"],
+      "pane": 2,
+      "deps": [
+        "T003"
+      ],
       "prompt": "Você está trabalhando no projeto existente em ~/multi-agents-framework/gerador-estudos/frontend/.\n\nUsando os tipos `ChatMessage` de src/types/content.ts e a função `sendChatMessage` de src/api/content.ts que você acabou de adicionar, crie o componente src/components/ChatTutor.tsx.\n\nProps do componente:\n```typescript\ninterface ChatTutorProps {\n  lessonId: number;\n  summaryContent: string; // não usado diretamente aqui — o backend usa o resumo do banco\n}\n```\n\nEstado local:\n```typescript\nconst [messages, setMessages] = useState<ChatMessage[]>([\n  { role: 'assistant', content: 'Olá! Sou seu tutor para esta aula. Pode me perguntar qualquer coisa sobre o conteúdo.' }\n]);\nconst [input, setInput] = useState('');\nconst [loading, setLoading] = useState(false);\nconst bottomRef = useRef<HTMLDivElement>(null);\n```\n\nComportamento:\n- `useEffect` que chama `bottomRef.current?.scrollIntoView({ behavior: 'smooth' })` sempre que `messages` mudar\n- Função `handleSend`:\n  1. Se `input.trim() === ''` ou `loading`: retornar\n  2. Capturar `userMessage = input.trim()`, limpar input\n  3. Adicionar `{ role: 'user', content: userMessage }` ao estado\n  4. Setar `loading = true`\n  5. Chamar `sendChatMessage(lessonId, userMessage, messages)` — passar o histórico atual (sem a mensagem recém adicionada para evitar duplicata, ou seja, passar `messages` antes do setState)\n  6. Adicionar `{ role: 'assistant', content: reply }` ao estado\n  7. Setar `loading = false` no finally\n  8. Em caso de erro: adicionar `{ role: 'assistant', content: 'Desculpe, ocorreu um erro. Tente novamente.' }`\n- `handleKeyDown`: se `e.key === 'Enter'` e não `e.shiftKey`: `e.preventDefault()` e chamar `handleSend`\n\nLayout JSX:\n```\n<div className=\"flex flex-col h-full\">\n  {/* área de mensagens */}\n  <div className=\"flex flex-col gap-3 overflow-y-auto max-h-96 p-4 flex-1\">\n    {messages.map((msg, i) => (\n      <div key={i} className={msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>\n        <div className={msg.role === 'user'\n          ? 'bg-[#3B82F6] text-white rounded-2xl rounded-br-sm px-4 py-2 max-w-[75%] text-sm'\n          : 'bg-white border border-[#E2E8F0] rounded-2xl rounded-bl-sm px-4 py-2 max-w-[75%] text-sm text-[#0F172A]'\n        }>\n          {msg.content}\n        </div>\n      </div>\n    ))}\n    {loading && (\n      <div className=\"flex justify-start\">\n        <div className=\"bg-white border border-[#E2E8F0] rounded-2xl rounded-bl-sm px-4 py-3\">\n          <div className=\"flex gap-1\">\n            <span className=\"w-2 h-2 bg-[#64748B] rounded-full animate-bounce\" style={{ animationDelay: '0ms' }} />\n            <span className=\"w-2 h-2 bg-[#64748B] rounded-full animate-bounce\" style={{ animationDelay: '150ms' }} />\n            <span className=\"w-2 h-2 bg-[#64748B] rounded-full animate-bounce\" style={{ animationDelay: '300ms' }} />\n          </div>\n        </div>\n      </div>\n    )}\n    <div ref={bottomRef} />\n  </div>\n  {/* input */}\n  <div className=\"flex gap-2 p-4 border-t border-[#E2E8F0]\">\n    <input\n      type=\"text\"\n      value={input}\n      onChange={e => setInput(e.target.value)}\n      onKeyDown={handleKeyDown}\n      disabled={loading}\n      placeholder=\"Faça uma pergunta sobre a aula...\"\n      className=\"flex-1 border border-[#E2E8F0] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/20 focus:border-[#3B82F6] disabled:opacity-50\"\n    />\n    <button\n      onClick={handleSend}\n      disabled={loading || input.trim() === ''}\n      className=\"bg-[#3B82F6] text-white rounded-lg px-4 py-2 text-sm hover:bg-[#2563EB] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1\"\n    >\n      <Send size={14} /> Enviar\n    </button>\n  </div>\n</div>\n```\n\nImports necessários: `useState`, `useRef`, `useEffect` do react; `Send` do lucide-react; `ChatMessage` de `'../types/content'`; `sendChatMessage` de `'../api/content'`.\n\nNÃO altere nenhum arquivo existente além de criar este novo componente."
     },
     {
       "id": "T005",
-      "pane": 3,
-      "deps": ["T003", "T004"],
+      "pane": 2,
+      "deps": [
+        "T003",
+        "T004"
+      ],
       "prompt": "Você está trabalhando no projeto existente em ~/multi-agents-framework/gerador-estudos/frontend/.\n\nAtualize src/pages/ResultPage.tsx com as seguintes mudanças. Leia o arquivo atual antes de editar.\n\n**Mudança 1 — Substituir markdownToHtml por react-markdown:**\n- Remover a função `markdownToHtml` do arquivo\n- Adicionar import: `import ReactMarkdown from 'react-markdown'`\n- Substituir todos os `<div dangerouslySetInnerHTML={{ __html: markdownToHtml(...) }} />` por `<ReactMarkdown className=\"prose prose-sm max-w-none text-[#64748B]\">{conteúdo}</ReactMarkdown>`\n- Para o plano de estudos: `<ReactMarkdown className=\"prose prose-sm max-w-none text-[#0F172A]\">{studyPlan.content}</ReactMarkdown>`\n- Para os resumos: `<ReactMarkdown className=\"prose prose-sm max-w-none text-[#64748B]\">{summary.content}</ReactMarkdown>`\n\n**Mudança 2 — Adicionar aba Chat Tutor:**\n- Adicionar `MessageCircle` ao import do lucide-react\n- Importar `ChatTutor` de `'../components/ChatTutor'`\n- Alterar o tipo Tab: `type Tab = 'plan' | 'summaries' | 'radar' | 'chat'`\n- Adicionar ao array `tabs`: `{ key: 'chat', label: 'Chat Tutor', icon: MessageCircle }`\n- Adicionar estado para aula selecionada no chat: `const [chatLessonIndex, setChatLessonIndex] = useState(0)`\n- Adicionar renderização da aba chat após o bloco do radar:\n\n```tsx\n{activeTab === 'chat' && summaries && summaries.length > 0 && (\n  <Card className=\"p-0 overflow-hidden\">\n    {summaries.length > 1 && (\n      <div className=\"p-4 border-b border-[#E2E8F0]\">\n        <label className=\"text-sm text-[#64748B] mr-2\">Aula:</label>\n        <select\n          value={chatLessonIndex}\n          onChange={e => setChatLessonIndex(Number(e.target.value))}\n          className=\"border border-[#E2E8F0] rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/20\"\n        >\n          {summaries.map((s, i) => (\n            <option key={s.id} value={i}>{s.youtubeTitle || `Aula ${i + 1}`}</option>\n          ))}\n        </select>\n      </div>\n    )}\n    <ChatTutor\n      key={summaries[chatLessonIndex].lessonId}\n      lessonId={summaries[chatLessonIndex].lessonId}\n      summaryContent={summaries[chatLessonIndex].content}\n    />\n  </Card>\n)}\n{activeTab === 'chat' && (!summaries || summaries.length === 0) && (\n  <Card>\n    <p className=\"text-[#64748B] text-center py-8\">Nenhum resumo disponível para o chat tutor.</p>\n  </Card>\n)}\n```\n\n**Mudança 3 — Melhorar blockquote no radar:**\n- No bloco do radar, onde renderiza `item.professorQuote`, substituir o `<p className=\"italic ...\">` por:\n```tsx\n{item.professorQuote && (\n  <blockquote className=\"border-l-2 border-[#64748B] pl-3 italic text-[#64748B] mb-2 text-sm\">\n    \"{item.professorQuote}\"\n  </blockquote>\n)}\n```\n\nNÃO altere a lógica de quiz, PDF export, ou qualquer outra funcionalidade existente."
     }
   ]
