@@ -7,6 +7,7 @@ import {
   generateExamRadar,
   generateStudyContent,
   generateFlashcards,
+  generateResearchContent,
 } from './openai';
 
 interface LessonRow {
@@ -86,6 +87,7 @@ export async function processSubject(subjectId: number): Promise<void> {
         const quizCount = Math.min(20, Math.max(8, Math.ceil(lesson.transcript!.length / 2000)));
 
         // Sequential calls — kiro-cli doesn't handle concurrent invocations reliably
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('summary', lesson.id);
         try {
           const summary = await generateSummary(lesson.transcript!);
           db.prepare('INSERT INTO summaries (lesson_id, subject_id, content, key_topics) VALUES (?, ?, ?, ?)').run(lesson.id, subjectId, summary.content, JSON.stringify(summary.keyTopics));
@@ -94,6 +96,7 @@ export async function processSubject(subjectId: number): Promise<void> {
         } catch (e) { console.error(`Erro ao gerar resumo para lesson ${lesson.id}:`, e); }
 
         if (options.quiz) {
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('quiz', lesson.id);
         try {
           const quizzes = await generateQuizzes(lesson.transcript!, quizCount);
           const insertQuiz = db.prepare('INSERT INTO quizzes (subject_id, lesson_id, question, options, correct_index, explanation, difficulty) VALUES (?, ?, ?, ?, ?, ?, ?)');
@@ -102,6 +105,7 @@ export async function processSubject(subjectId: number): Promise<void> {
         }
 
         if (options.examRadar) {
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('exam_radar', lesson.id);
         try {
           const radar = await generateExamRadar(lesson.transcript!);
           const insertRadar = db.prepare('INSERT INTO exam_radar (subject_id, lesson_id, topic, relevance, professor_quote, reasoning) VALUES (?, ?, ?, ?, ?, ?)');
@@ -110,6 +114,7 @@ export async function processSubject(subjectId: number): Promise<void> {
         }
 
         if (options.studyContent) {
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('study_content', lesson.id);
         try {
           const studyContent = await generateStudyContent(lesson.transcript!, [...allPreviousTopics]);
           db.prepare('INSERT INTO study_content (lesson_id, subject_id, content) VALUES (?, ?, ?)').run(lesson.id, subjectId, studyContent.content);
@@ -117,23 +122,29 @@ export async function processSubject(subjectId: number): Promise<void> {
         }
 
         if (options.quiz !== false) {
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('flashcards', lesson.id);
         try {
           const flashcards = await generateFlashcards(lesson.transcript!, 10);
           const insertFc = db.prepare('INSERT INTO flashcards (subject_id, lesson_id, front, back, category) VALUES (?, ?, ?, ?, ?)');
           for (const fc of flashcards) insertFc.run(subjectId, lesson.id, fc.front, fc.back, fc.category);
         } catch (e) { console.error(`Erro ao gerar flashcards para lesson ${lesson.id}:`, e); }
         }
+
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('completed', lesson.id);
       } catch (error) {
         console.error(`Erro ao gerar conteúdo para lesson ${lesson.id}:`, error);
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('error', lesson.id);
       }
     }
 
     if (options.studyPlan !== false) {
-      const studyPlan = await generateStudyPlan(summariesData);
-      db.prepare('INSERT INTO study_plans (subject_id, content) VALUES (?, ?)').run(
-        subjectId,
-        studyPlan
-      );
+      try {
+        const studyPlan = await generateStudyPlan(summariesData);
+        db.prepare('INSERT INTO study_plans (subject_id, content) VALUES (?, ?)').run(
+          subjectId,
+          studyPlan
+        );
+      } catch (e) { console.error(`Erro ao gerar plano de estudos para subject ${subjectId}:`, e); }
     }
 
     db.prepare(
@@ -170,15 +181,17 @@ export async function processExamSubject(subjectId: number): Promise<void> {
       const sourceTitle = source.original_filename || `Texto colado ${i + 1}`;
       const transcript = source.extracted_text;
 
+      let lessonId: number | null = null;
       try {
         const lessonResult = db.prepare(
           'INSERT INTO lessons (subject_id, youtube_url, youtube_title, transcript, transcript_method, status, order_index) VALUES (?, ?, ?, ?, ?, ?, ?)'
         ).run(subjectId, 'exam://' + (source.original_filename || 'text'), sourceTitle, transcript, 'youtube', 'transcribed', i);
-        const lessonId = lessonResult.lastInsertRowid as number;
+        lessonId = lessonResult.lastInsertRowid as number;
 
         const quizCount = Math.min(20, Math.max(8, Math.ceil(transcript.length / 2000)));
 
         // Sequential calls — kiro-cli doesn't handle concurrent invocations reliably
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('summary', lessonId);
         try {
           const summary = await generateSummary(transcript);
           db.prepare('INSERT INTO summaries (lesson_id, subject_id, content, key_topics) VALUES (?, ?, ?, ?)').run(lessonId, subjectId, summary.content, JSON.stringify(summary.keyTopics));
@@ -187,6 +200,7 @@ export async function processExamSubject(subjectId: number): Promise<void> {
         } catch (e) { console.error(`Erro ao gerar resumo para source ${i + 1}:`, e); }
 
         if (options.quiz) {
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('quiz', lessonId);
         try {
           const quizzes = await generateQuizzes(transcript, quizCount);
           const insertQuiz = db.prepare('INSERT INTO quizzes (subject_id, lesson_id, question, options, correct_index, explanation, difficulty) VALUES (?, ?, ?, ?, ?, ?, ?)');
@@ -195,6 +209,7 @@ export async function processExamSubject(subjectId: number): Promise<void> {
         }
 
         if (options.examRadar) {
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('exam_radar', lessonId);
         try {
           const radar = await generateExamRadar(transcript);
           const insertRadar = db.prepare('INSERT INTO exam_radar (subject_id, lesson_id, topic, relevance, professor_quote, reasoning) VALUES (?, ?, ?, ?, ?, ?)');
@@ -203,13 +218,15 @@ export async function processExamSubject(subjectId: number): Promise<void> {
         }
 
         if (options.studyContent) {
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('study_content', lessonId);
         try {
-          const studyContent = await generateStudyContent(transcript, [...allPreviousTopics]);
+          const studyContent = await generateStudyContent(transcript, [...allPreviousTopics], 'exam');
           db.prepare('INSERT INTO study_content (lesson_id, subject_id, content) VALUES (?, ?, ?)').run(lessonId, subjectId, studyContent.content);
         } catch (e) { console.error(`Erro ao gerar study content para source ${i + 1}:`, e); }
         }
 
         if (options.quiz !== false) {
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('flashcards', lessonId);
         try {
           const flashcards = await generateFlashcards(transcript, 10);
           const insertFc = db.prepare('INSERT INTO flashcards (subject_id, lesson_id, front, back, category) VALUES (?, ?, ?, ?, ?)');
@@ -217,22 +234,122 @@ export async function processExamSubject(subjectId: number): Promise<void> {
         } catch (e) { console.error(`Erro ao gerar flashcards para source ${i + 1}:`, e); }
         }
 
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('completed', lessonId);
+
         db.prepare("UPDATE subjects SET processed_lessons = processed_lessons + 1, updated_at = datetime('now') WHERE id = ?").run(subjectId);
         console.log(`Exam source ${i + 1} processada: ${sourceTitle}`);
       } catch (error) {
         console.error(`Erro ao criar lesson para exam source ${i + 1}:`, error);
+        if (lessonId) db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('error', lessonId);
       }
     }
 
     if (summariesData.length > 0 && options.studyPlan !== false) {
-      const studyPlan = await generateStudyPlan(summariesData);
-      db.prepare('INSERT INTO study_plans (subject_id, content) VALUES (?, ?)').run(subjectId, studyPlan);
+      try {
+        const studyPlan = await generateStudyPlan(summariesData);
+        db.prepare('INSERT INTO study_plans (subject_id, content) VALUES (?, ?)').run(subjectId, studyPlan);
+      } catch (e) { console.error(`Erro ao gerar plano de estudos para subject ${subjectId}:`, e); }
     }
 
     db.prepare("UPDATE subjects SET status = 'completed', updated_at = datetime('now') WHERE id = ?").run(subjectId);
     console.log(`Exam subject ${subjectId} processado com sucesso`);
   } catch (error) {
     console.error(`Erro geral ao processar exam subject ${subjectId}:`, error);
+    db.prepare("UPDATE subjects SET status = 'error', updated_at = datetime('now') WHERE id = ?").run(subjectId);
+  }
+}
+
+export async function processResearchSubject(subjectId: number): Promise<void> {
+  const db = getDb();
+  try {
+    const subject = db.prepare('SELECT * FROM subjects WHERE id = ?').get(subjectId) as any;
+    const options = JSON.parse(subject?.content_options || '{"studyContent":true,"summary":true,"examRadar":true,"quiz":true}');
+
+    const lesson = db.prepare('SELECT * FROM lessons WHERE subject_id = ? ORDER BY order_index LIMIT 1').get(subjectId) as LessonRow | undefined;
+    if (!lesson) {
+      db.prepare("UPDATE subjects SET status = 'error', updated_at = datetime('now') WHERE id = ?").run(subjectId);
+      return;
+    }
+
+    const topic = lesson.youtube_title || lesson.youtube_url.replace('research://', '');
+
+    db.prepare('UPDATE lessons SET status = ? WHERE id = ?').run('transcribing', lesson.id);
+
+    let transcript: string;
+    try {
+      transcript = await generateResearchContent(topic);
+      db.prepare('UPDATE lessons SET transcript = ?, transcript_method = ?, status = ? WHERE id = ?').run(transcript, 'youtube', 'transcribed', lesson.id);
+      db.prepare("UPDATE subjects SET processed_lessons = processed_lessons + 1, updated_at = datetime('now') WHERE id = ?").run(subjectId);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      db.prepare('UPDATE lessons SET status = ?, error_message = ? WHERE id = ?').run('error', msg, lesson.id);
+      db.prepare("UPDATE subjects SET status = 'error', updated_at = datetime('now') WHERE id = ?").run(subjectId);
+      return;
+    }
+
+    const quizCount = Math.min(20, Math.max(8, Math.ceil(transcript.length / 2000)));
+    const summariesData: { title: string; content: string }[] = [];
+
+    try {
+      db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('summary', lesson.id);
+      try {
+        const summary = await generateSummary(transcript);
+        db.prepare('INSERT INTO summaries (lesson_id, subject_id, content, key_topics) VALUES (?, ?, ?, ?)').run(lesson.id, subjectId, summary.content, JSON.stringify(summary.keyTopics));
+        summariesData.push({ title: topic, content: summary.content });
+      } catch (e) { console.error(`Erro ao gerar resumo para research ${subjectId}:`, e); }
+
+      if (options.quiz) {
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('quiz', lesson.id);
+        try {
+          const quizzes = await generateQuizzes(transcript, quizCount);
+          const insertQuiz = db.prepare('INSERT INTO quizzes (subject_id, lesson_id, question, options, correct_index, explanation, difficulty) VALUES (?, ?, ?, ?, ?, ?, ?)');
+          for (const quiz of quizzes) insertQuiz.run(subjectId, lesson.id, quiz.question, JSON.stringify(quiz.options), quiz.correctIndex, quiz.explanation, quiz.difficulty);
+        } catch (e) { console.error(`Erro ao gerar quizzes para research ${subjectId}:`, e); }
+      }
+
+      if (options.examRadar) {
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('exam_radar', lesson.id);
+        try {
+          const radar = await generateExamRadar(transcript);
+          const insertRadar = db.prepare('INSERT INTO exam_radar (subject_id, lesson_id, topic, relevance, professor_quote, reasoning) VALUES (?, ?, ?, ?, ?, ?)');
+          for (const item of radar) insertRadar.run(subjectId, lesson.id, item.topic, item.relevance, item.professorQuote, item.reasoning);
+        } catch (e) { console.error(`Erro ao gerar radar para research ${subjectId}:`, e); }
+      }
+
+      if (options.studyContent) {
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('study_content', lesson.id);
+        try {
+          const studyContent = await generateStudyContent(transcript, [], undefined, topic);
+          db.prepare('INSERT INTO study_content (lesson_id, subject_id, content) VALUES (?, ?, ?)').run(lesson.id, subjectId, studyContent.content);
+        } catch (e) { console.error(`Erro ao gerar study content para research ${subjectId}:`, e); }
+      }
+
+      if (options.quiz !== false) {
+        db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('flashcards', lesson.id);
+        try {
+          const flashcards = await generateFlashcards(transcript, 10);
+          const insertFc = db.prepare('INSERT INTO flashcards (subject_id, lesson_id, front, back, category) VALUES (?, ?, ?, ?, ?)');
+          for (const fc of flashcards) insertFc.run(subjectId, lesson.id, fc.front, fc.back, fc.category);
+        } catch (e) { console.error(`Erro ao gerar flashcards para research ${subjectId}:`, e); }
+      }
+
+      db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('completed', lesson.id);
+    } catch (error) {
+      console.error(`Erro ao gerar conteúdo para research ${subjectId}:`, error);
+      db.prepare('UPDATE lessons SET ai_step = ? WHERE id = ?').run('error', lesson.id);
+    }
+
+    if (summariesData.length > 0 && options.studyPlan !== false) {
+      try {
+        const studyPlan = await generateStudyPlan(summariesData);
+        db.prepare('INSERT INTO study_plans (subject_id, content) VALUES (?, ?)').run(subjectId, studyPlan);
+      } catch (e) { console.error(`Erro ao gerar plano de estudos para research ${subjectId}:`, e); }
+    }
+
+    db.prepare("UPDATE subjects SET status = 'completed', updated_at = datetime('now') WHERE id = ?").run(subjectId);
+    console.log(`Research subject ${subjectId} processado com sucesso`);
+  } catch (error) {
+    console.error(`Erro geral ao processar research subject ${subjectId}:`, error);
     db.prepare("UPDATE subjects SET status = 'error', updated_at = datetime('now') WHERE id = ?").run(subjectId);
   }
 }

@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { Subject, SubjectDetail, CreateSubjectInput, CreateExamSubjectInput, ProcessingStatus } from '../types/subject';
+import type { Subject, SubjectDetail, CreateSubjectInput, CreateExamSubjectInput, ProcessingStatus, ContentOptions } from '../types/subject';
 
 export async function getSubjects(): Promise<Subject[]> {
   const { data } = await api.get<{ data: Subject[] }>('/subjects');
@@ -35,6 +35,11 @@ export async function createExamSubject(input: CreateExamSubjectInput): Promise<
   }
   if (input.contentOptions) formData.append('contentOptions', JSON.stringify(input.contentOptions));
   const { data } = await api.post<Subject>('/subjects/from-exam', formData);
+  return data;
+}
+
+export async function createResearchSubject(input: { title: string; topic: string; description?: string; contentOptions?: ContentOptions }): Promise<Subject> {
+  const { data } = await api.post<Subject>('/subjects/research', input);
   return data;
 }
 

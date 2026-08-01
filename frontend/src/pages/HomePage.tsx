@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, GraduationCap, BookOpen, FileUp, Upload, X, Loader2, List, BarChart3 } from 'lucide-react';
+import { Plus, Trash2, GraduationCap, BookOpen, FileUp, Upload, X, Loader2, List, BarChart3, Search } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -9,7 +9,7 @@ import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { Textarea } from '../components/ui/Textarea';
 import { EmptyState } from '../components/ui/EmptyState';
-import { useSubjects, useCreateSubject, useDeleteSubject, useCreateExamSubject } from '../hooks/useSubjects';
+import { useSubjects, useCreateSubject, useDeleteSubject, useCreateExamSubject, useCreateResearchSubject } from '../hooks/useSubjects';
 import { parseYoutubeUrls } from '../utils/youtube';
 import { resolvePlaylist } from '../api/subjects';
 import { formatDate } from '../utils/format';
@@ -36,10 +36,12 @@ export function HomePage() {
   const createSubject = useCreateSubject();
   const deleteSubject = useDeleteSubject();
   const createExamSubject = useCreateExamSubject();
+  const createResearchSubject = useCreateResearchSubject();
   const { addXP } = useGamification();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
+  const [isResearchModalOpen, setIsResearchModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Subject | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -54,6 +56,11 @@ export function HomePage() {
   const [loadingPlaylist, setLoadingPlaylist] = useState(false);
   const defaultContentOptions: ContentOptions = { studyContent: true, summary: true, examRadar: true, quiz: true, studyPlan: true };
   const [contentOptions, setContentOptions] = useState<ContentOptions>(defaultContentOptions);
+
+  // Research modal state
+  const [researchTitle, setResearchTitle] = useState('');
+  const [researchTopic, setResearchTopic] = useState('');
+  const [researchDescription, setResearchDescription] = useState('');
 
   const validUrls = useMemo(() => parseYoutubeUrls(linksText), [linksText]);
   const playlistUrl = useMemo(() => {
@@ -100,6 +107,24 @@ export function HomePage() {
     setExamDescription('');
     setExamText('');
     setExamFiles([]);
+    setContentOptions(defaultContentOptions);
+    navigate(`/subjects/${result.id}/processing`);
+  }
+
+  async function handleCreateResearch() {
+    if (!researchTitle.trim() || !researchTopic.trim()) return;
+    const result = await createResearchSubject.mutateAsync({
+      title: researchTitle.trim(),
+      topic: researchTopic.trim(),
+      description: researchDescription.trim() || undefined,
+      contentOptions,
+    });
+    localStorage.setItem('studygen-options-' + result.id, JSON.stringify(contentOptions));
+    addXP(15, 'create-subject');
+    setIsResearchModalOpen(false);
+    setResearchTitle('');
+    setResearchTopic('');
+    setResearchDescription('');
     setContentOptions(defaultContentOptions);
     navigate(`/subjects/${result.id}/processing`);
   }
@@ -167,6 +192,9 @@ export function HomePage() {
             </Button>
             <Button variant="secondary" onClick={() => setIsExamModalOpen(true)}>
               <span className="flex items-center gap-2"><FileUp size={18} /> Estudar para Prova</span>
+            </Button>
+            <Button variant="secondary" onClick={() => setIsResearchModalOpen(true)}>
+              <span className="flex items-center gap-2"><Search size={18} /> Pesquisar na Internet</span>
             </Button>
             <Button onClick={() => setIsModalOpen(true)}>
               <span className="flex items-center gap-2"><Plus size={18} /> Nova Matéria</span>
@@ -286,6 +314,20 @@ export function HomePage() {
             {contentCheckboxes}
             <Button onClick={handleCreateExam} loading={createExamSubject.isPending} disabled={!examValid} className="w-full">
               Criar e Estudar
+            </Button>
+          </div>
+        </Modal>
+
+        {/* Research Create Modal */}
+        <Modal isOpen={isResearchModalOpen} onClose={() => setIsResearchModalOpen(false)} title="Pesquisar na Internet" size="lg">
+          <div className="space-y-5">
+            <p className="text-sm text-slate-500 dark:text-slate-400">A IA vai pesquisar o tema na internet e gerar um material de estudo completo</p>
+            <Input label="Título" value={researchTitle} onChange={(e) => setResearchTitle(e.target.value)} placeholder="Ex: Engenharia de Dados com Databricks" />
+            <Textarea label="Tema a pesquisar" value={researchTopic} onChange={(e) => setResearchTopic(e.target.value)} placeholder="Ex: Databricks, Snowflake e dbt para engenharia de dados" rows={3} />
+            <Input label="Descrição (opcional)" value={researchDescription} onChange={(e) => setResearchDescription(e.target.value)} placeholder="Ex: Foco em casos de uso práticos" />
+            {contentCheckboxes}
+            <Button onClick={handleCreateResearch} loading={createResearchSubject.isPending} disabled={!researchTitle.trim() || !researchTopic.trim()} className="w-full">
+              Criar e Pesquisar
             </Button>
           </div>
         </Modal>

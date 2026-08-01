@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSubject, useProcessingStatus } from "../hooks/useSubjects";
 import { Header } from "../components/layout/Header";
@@ -11,18 +11,31 @@ import { Loader2, CheckCircle, Clock, AlertCircle, ArrowLeft } from "lucide-reac
 const statusIcon: Record<string, React.ReactNode> = {
   pending: <Clock size={20} className="text-slate-300" />,
   transcribing: <Loader2 size={20} className="text-brand-500 animate-spin" />,
-  transcribed: <CheckCircle size={20} className="text-emerald-500 animate-scale-in" />,
+  transcribed: <Loader2 size={20} className="text-brand-500 animate-spin" />,
   ai_done: <CheckCircle size={20} className="text-emerald-500 animate-scale-in" />,
   error: <AlertCircle size={20} className="text-red-500" />,
 };
 
-const statusBadge: Record<string, { variant: "default" | "accent" | "success" | "error"; label: string }> = {
-  pending: { variant: "default", label: "Aguardando" },
-  transcribing: { variant: "accent", label: "Transcrevendo" },
-  transcribed: { variant: "accent", label: "Gerando IA..." },
-  ai_done: { variant: "success", label: "Concluída" },
-  error: { variant: "error", label: "Erro" },
+const aiStepLabels: Record<string, string> = {
+  summary: 'Gerando resumo...',
+  quiz: 'Gerando quiz...',
+  exam_radar: 'Analisando radar de prova...',
+  study_content: 'Gerando material de estudo...',
+  flashcards: 'Gerando flashcards...',
+  study_plan: 'Gerando plano de estudos...',
+  completed: 'Concluído',
+  error: 'Erro na geração',
 };
+
+function getLessonBadge(lesson: { status: string; aiGenerated: boolean; aiStep: string | null }): { variant: "default" | "accent" | "success" | "error"; label: string } {
+  if (lesson.aiStep === 'error') return { variant: 'error', label: 'Erro parcial na geração' };
+  if (lesson.aiGenerated || lesson.aiStep === 'completed') return { variant: 'success', label: 'Concluída' };
+  if (lesson.status === 'transcribed' && lesson.aiStep) return { variant: 'accent', label: aiStepLabels[lesson.aiStep] ?? 'Gerando IA...' };
+  if (lesson.status === 'transcribed') return { variant: 'accent', label: 'Gerando IA...' };
+  if (lesson.status === 'transcribing') return { variant: 'accent', label: 'Transcrevendo' };
+  if (lesson.status === 'error') return { variant: 'error', label: 'Erro' };
+  return { variant: 'default', label: 'Aguardando' };
+}
 
 export function ProcessingPage() {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +43,9 @@ export function ProcessingPage() {
   const subjectId = Number(id);
   const { data: subject } = useSubject(subjectId);
   const [completed, setCompleted] = useState(false);
+  const [logs, setLogs] = useState<{ time: string; message: string; done: boolean }[]>([]);
+  const prevStepsRef = useRef<Record<number, string>>({});
+  const logContainerRef = useRef<HTMLDivElement>(null);
 
   const shouldPoll = !completed;
   const { data: processing } = useProcessingStatus(subjectId, shouldPoll);
@@ -39,29 +55,31 @@ export function ProcessingPage() {
   const processedLessons = processing?.processedLessons ?? subject?.processedLessons ?? 0;
   const percentage = totalLessons > 0 ? (processedLessons / totalLessons) * 100 : 0;
 
-  const aiGeneratedCount = processing?.lessons.filter((l) => l.aiGenerated).length ?? 0;
+  const aiCompletedCount = processing?.lessons.filter((l) => l.aiStep === 'completed').length ?? 0;
   const allTranscribed = processing?.lessons.every((l) => l.status === 'transcribed' || l.status === 'error') ?? false;
   const progressValue = allTranscribed && totalLessons > 0
-    ? (aiGeneratedCount / totalLessons) * 100
+    ? (aiCompletedCount / totalLessons) * 100
     : percentage;
   const isExam = subject?.sourceType === 'exam';
   const progressLabel = allTranscribed
-    ? `Gerando conteúdo IA: ${aiGeneratedCount} de ${totalLessons} ${isExam ? 'fontes' : 'aulas'}`
+    ? aiCompletedCount > 0
+      ? `Gerando conteúdo: ${aiCompletedCount} de ${totalLessons} ${isExam ? 'fontes' : 'aulas'}`
+      : 'Iniciando geração de conteúdo...'
     : isExam
       ? `Processando prova: ${processedLessons} de ${totalLessons} fontes`
       : `Transcrevendo: ${processedLessons} de ${totalLessons} aulas`;
 
   const estimatedTimeLeft = useMemo(() => {
-    if (!subject?.createdAt || aiGeneratedCount === 0 || aiGeneratedCount >= totalLessons) return null;
+    if (!subject?.createdAt || aiCompletedCount === 0 || aiCompletedCount >= totalLessons) return null;
     const elapsedMs = Date.now() - new Date(subject.createdAt + 'Z').getTime();
-    const msLeft = (totalLessons - aiGeneratedCount) * (elapsedMs / aiGeneratedCount);
+    const msLeft = (totalLessons - aiCompletedCount) * (elapsedMs / aiCompletedCount);
     const minLeft = Math.ceil(msLeft / 60000);
     if (minLeft <= 1) return 'menos de 1 minuto';
     if (minLeft < 60) return `cerca de ${minLeft} minutos`;
     const hours = Math.floor(minLeft / 60);
     const mins = minLeft % 60;
     return `cerca de ${hours}h${mins > 0 ? ` ${mins}min` : ''}`;
-  }, [subject?.createdAt, aiGeneratedCount, totalLessons]);
+  }, [subject?.createdAt, aiCompletedCount, totalLessons]);
 
   useEffect(() => {
     if ((processing?.status === "completed" || subject?.status === "completed") && !completed) {
@@ -70,6 +88,57 @@ export function ProcessingPage() {
       return () => clearTimeout(timer);
     }
   }, [processing?.status, subject?.status, completed, navigate, subjectId]);
+
+  const stepMessages: Record<string, string> = {
+    transcribing: 'Buscando conteúdo...',
+    transcribed: 'Conteúdo obtido ✓',
+    summary: 'Gerando resumo...',
+    quiz: 'Gerando quiz...',
+    exam_radar: 'Analisando radar de prova...',
+    study_content: 'Gerando material de estudo...',
+    flashcards: 'Gerando flashcards...',
+    study_plan: 'Gerando plano de estudos...',
+    completed: 'Tudo pronto! ✓',
+    error: 'Erro na geração ✗',
+  };
+
+  useEffect(() => {
+    if (!processing?.lessons) return;
+    const multiLesson = processing.lessons.length > 1;
+    const newEntries: { time: string; message: string; done: boolean }[] = [];
+    const now = new Date().toLocaleTimeString('pt-BR');
+
+    for (const lesson of processing.lessons) {
+      const prev = prevStepsRef.current[lesson.id];
+      const prefix = multiLesson && lesson.youtubeTitle ? `[${lesson.youtubeTitle}] ` : '';
+
+      const currentKey = lesson.aiStep ?? lesson.status;
+      if (currentKey !== prev) {
+        if (lesson.status === 'transcribing' && prev === undefined) {
+          newEntries.push({ time: now, message: prefix + stepMessages.transcribing, done: false });
+        } else if (lesson.status === 'transcribed' && prev === 'transcribing') {
+          newEntries.push({ time: now, message: prefix + stepMessages.transcribed, done: false });
+        } else if (lesson.aiStep && stepMessages[lesson.aiStep]) {
+          newEntries.push({
+            time: now,
+            message: prefix + stepMessages[lesson.aiStep],
+            done: lesson.aiStep === 'completed' || lesson.aiStep === 'error',
+          });
+        }
+        prevStepsRef.current[lesson.id] = currentKey;
+      }
+    }
+
+    if (newEntries.length > 0) {
+      setLogs(prev => [...prev, ...newEntries]);
+    }
+  }, [processing?.lessons]);
+
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [logs]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
@@ -101,38 +170,41 @@ export function ProcessingPage() {
           </Card>
         ) : (
           <Card>
-            {progressValue >= 100 && status === 'processing' ? (
-              <div className="space-y-3">
-                <p className="text-brand-600 font-medium flex items-center gap-2">
-                  <Loader2 size={18} className="text-brand-500 animate-spin" />
-                  Finalizando geração de conteúdo inteligente...
+            <div className="space-y-3">
+              <p className="text-slate-600 dark:text-slate-300 font-medium">{progressLabel}</p>
+              <ProgressBar value={progressValue} showLabel />
+              {estimatedTimeLeft ? (
+                <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-2">
+                  <Clock size={12} /> Tempo estimado restante: {estimatedTimeLeft}
                 </p>
-                <ProgressBar value={100} showLabel />
-                <p className="text-xs text-slate-400">Gerando quizzes, radar de prova e material de estudo</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-slate-600 dark:text-slate-300 font-medium">{progressLabel}</p>
-                <ProgressBar value={progressValue} showLabel />
-                {estimatedTimeLeft ? (
-                  <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-2">
-                    <Clock size={12} /> Tempo estimado restante: {estimatedTimeLeft}
-                  </p>
-                ) : aiGeneratedCount === 0 && status === 'processing' && totalLessons > 1 ? (
-                  <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-2">
-                    <Clock size={12} /> Calculando estimativa de tempo...
-                  </p>
-                ) : null}
-              </div>
-            )}
+              ) : aiCompletedCount === 0 && status === 'processing' && totalLessons > 1 ? (
+                <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-2">
+                  <Clock size={12} /> Calculando estimativa de tempo...
+                </p>
+              ) : null}
+            </div>
+          </Card>
+        )}
+
+        {/* Event log */}
+        {logs.length > 0 && (
+          <Card className="!p-4">
+            <div ref={logContainerRef} className="font-mono text-xs space-y-1 max-h-48 overflow-y-auto">
+              {logs.map((log, i) => (
+                <div key={i} className="flex items-start gap-3 text-slate-500 dark:text-slate-400">
+                  <span className="shrink-0 text-slate-400">{log.time}</span>
+                  <span className={log.done ? 'text-emerald-500' : ''}>{log.message}</span>
+                </div>
+              ))}
+            </div>
           </Card>
         )}
 
         {/* Lessons list */}
         <div className="space-y-3">
           {processing?.lessons.map((lesson, i) => {
-            const visualStatus = lesson.aiGenerated ? 'ai_done' : lesson.status;
-            const badge = statusBadge[visualStatus] ?? statusBadge.pending;
+            const visualStatus = lesson.aiStep === 'completed' || lesson.aiGenerated ? 'ai_done' : lesson.status;
+            const badge = getLessonBadge(lesson);
             return (
               <div key={lesson.id} className="animate-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
                 <Card className="flex items-center gap-4">

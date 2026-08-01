@@ -5,7 +5,9 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
+import rehypeKatex from 'rehype-katex';
 import { useSubject } from '../hooks/useSubjects';
 import { useStudyPlan, useSummaries, useExamRadar, useStudyContent } from '../hooks/useContent';
 import { Header } from '../components/layout/Header';
@@ -304,7 +306,7 @@ export function ResultPage() {
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                           <GraduationCap size={22} className="text-brand-500" /> {cleanTitle(item.youtubeTitle, i, sections[0]?.title)}
                         </h3>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} className={proseClasses} components={markdownComponents}>{preprocessMarkdown(item.content)}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]} className={proseClasses} components={markdownComponents}>{preprocessMarkdown(item.content)}</ReactMarkdown>
                       </Card>
                     </div>
                   );
@@ -373,7 +375,7 @@ export function ResultPage() {
                             </div>
                             <div className="flex-1 overflow-y-auto overscroll-contain min-h-0 pr-2" key={slideIndex}>
                               <div className="animate-fade-in">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} className={proseClasses} components={markdownComponents}>{preprocessMarkdown(sections[slideIndex].content)}</ReactMarkdown>
+                                <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]} className={proseClasses} components={markdownComponents}>{preprocessMarkdown(sections[slideIndex].content)}</ReactMarkdown>
                               </div>
                             </div>
                             <div className="shrink-0 pt-4 border-t border-slate-200 dark:border-slate-700 mt-4 flex items-center justify-between">
@@ -444,7 +446,7 @@ export function ResultPage() {
           {activeTab === 'plan' && studyPlan && (
             <div className="animate-fade-in">
               <Card>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} className={proseClasses} components={markdownComponents}>{preprocessMarkdown(studyPlan.content)}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]} className={proseClasses} components={markdownComponents}>{preprocessMarkdown(studyPlan.content)}</ReactMarkdown>
               </Card>
             </div>
           )}
@@ -463,7 +465,7 @@ export function ResultPage() {
                       </button>
                       <Card>
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-3">{summary.keyTopics?.[0] || cleanTitle(summary.youtubeTitle, i)}</h3>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} className={proseClasses} components={markdownComponents}>{preprocessMarkdown(summary.content)}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]} className={proseClasses} components={markdownComponents}>{preprocessMarkdown(summary.content)}</ReactMarkdown>
                         {summary.keyTopics.length > 0 && (
                           <div className="flex flex-wrap gap-2 mt-4">
                             {summary.keyTopics.map((topic) => (

@@ -17,7 +17,7 @@ export function initDatabase(): Database.Database {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
       description TEXT,
-      source_type TEXT NOT NULL DEFAULT 'youtube' CHECK(source_type IN ('youtube','exam')),
+      source_type TEXT NOT NULL DEFAULT 'youtube' CHECK(source_type IN ('youtube','exam','research')),
       status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','processing','completed','error')),
       total_lessons INTEGER NOT NULL DEFAULT 0,
       processed_lessons INTEGER NOT NULL DEFAULT 0,
@@ -37,6 +37,7 @@ export function initDatabase(): Database.Database {
       status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','transcribing','transcribed','error')),
       error_message TEXT,
       order_index INTEGER NOT NULL DEFAULT 0,
+      ai_step TEXT DEFAULT NULL CHECK(ai_step IN ('summary','quiz','exam_radar','study_content','flashcards','study_plan','completed','error')),
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -120,10 +121,38 @@ export function initDatabase(): Database.Database {
   // Migrations para bancos existentes
   const columns = db.prepare("PRAGMA table_info(subjects)").all() as { name: string }[];
   if (!columns.some(c => c.name === 'source_type')) {
-    db.exec("ALTER TABLE subjects ADD COLUMN source_type TEXT NOT NULL DEFAULT 'youtube' CHECK(source_type IN ('youtube','exam'))");
+    db.exec("ALTER TABLE subjects ADD COLUMN source_type TEXT NOT NULL DEFAULT 'youtube' CHECK(source_type IN ('youtube','exam','research'))");
+  } else {
+    // Fix existing DBs that have the old CHECK constraint without 'research'
+    const schema = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='subjects'").get() as { sql: string } | undefined;
+    if (schema?.sql && schema.sql.includes("source_type IN ('youtube','exam')") && !schema.sql.includes("'research'")) {
+      db.exec(`
+        CREATE TABLE subjects_new AS SELECT * FROM subjects;
+        DROP TABLE subjects;
+        CREATE TABLE subjects (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          description TEXT,
+          status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','processing','completed','error')),
+          total_lessons INTEGER NOT NULL DEFAULT 0,
+          processed_lessons INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          source_type TEXT NOT NULL DEFAULT 'youtube' CHECK(source_type IN ('youtube','exam','research')),
+          content_options TEXT NOT NULL DEFAULT '{"studyContent":true,"summary":true,"examRadar":true,"quiz":true}'
+        );
+        INSERT INTO subjects SELECT * FROM subjects_new;
+        DROP TABLE subjects_new;
+      `);
+    }
   }
   if (!columns.some(c => c.name === 'content_options')) {
     db.exec("ALTER TABLE subjects ADD COLUMN content_options TEXT NOT NULL DEFAULT '{\"studyContent\":true,\"summary\":true,\"examRadar\":true,\"quiz\":true}'");
+  }
+
+  const lessonCols = db.prepare('PRAGMA table_info(lessons)').all() as { name: string }[];
+  if (!lessonCols.some(c => c.name === 'ai_step')) {
+    db.exec('ALTER TABLE lessons ADD COLUMN ai_step TEXT DEFAULT NULL');
   }
 
   return db;

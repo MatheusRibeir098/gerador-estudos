@@ -2,7 +2,7 @@ export interface Subject {
   id: number;
   title: string;
   description: string | null;
-  sourceType?: 'youtube' | 'exam';
+  sourceType?: 'youtube' | 'exam' | 'research';
   status: 'pending' | 'processing' | 'completed' | 'error';
   totalLessons: number;
   processedLessons: number;
@@ -53,5 +53,5 @@ export interface ProcessingStatus {
   totalLessons: number;
   processedLessons: number;
   currentStep: string;
-  lessons: { id: number; status: string; youtubeTitle: string | null; aiGenerated: boolean }[];
+  lessons: { id: number; status: string; youtubeTitle: string | null; aiGenerated: boolean; aiStep: string | null }[];
 }

@@ -4,6 +4,7 @@ import {
   getSubject,
   createSubject,
   createExamSubject,
+  createResearchSubject,
   deleteSubject,
   getProcessingStatus,
 } from '../api/subjects';
@@ -36,6 +37,14 @@ export function useCreateExamSubject() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createExamSubject,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subjects'] }),
+  });
+}
+
+export function useCreateResearchSubject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createResearchSubject,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subjects'] }),
   });
 }

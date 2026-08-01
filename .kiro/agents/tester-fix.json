@@ -5,9 +5,16 @@
   "tools": ["*"],
   "mcpServers": {},
   "allowedTools": [],
-  "resources": [],
+  "resources": [
+    "file://.kiro/skills/_shared/testing-strategy.md",
+    "file://.kiro/skills/_shared/e2e-playwright.md",
+    "file://.kiro/skills/_shared/seguranca.md",
+    "file://.kiro/skills/_shared/safe-operations.md",
+    "file://.kiro/skills/_shared/no-deploy-no-push.md",
+    "file://.kiro/skills/_shared/search-before-code.md"
+  ],
   "hooks": {},
   "toolsSettings": {},
   "includeMcpJson": false,
-  "model": "claude-opus-4-0-20250609"
+  "model": "claude-sonnet-4.6"
 }

@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import type { ChatMessage } from '../types/content';
 import { sendChatMessage } from '../api/content';
 import MermaidBlock from './MermaidBlock';
@@ -71,7 +73,7 @@ export default function ChatTutor({ lessonId }: ChatTutorProps) {
               : 'bg-white border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-2.5 max-w-[75%] text-sm text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200'
             }>
               {msg.role === 'user' ? msg.content : (
-                <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-sm prose-slate dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-code:bg-slate-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none" components={chatMarkdownComponents}>{msg.content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} className="prose prose-sm prose-slate dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-code:bg-slate-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none" components={chatMarkdownComponents}>{msg.content}</ReactMarkdown>
               )}
             </div>
           </div>

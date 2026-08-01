@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, RotateCcw, ChevronRight } from 'lucide-react';
+import { ArrowLeft, RotateCcw, ChevronRight, Download } from 'lucide-react';
 import { supermemo } from 'supermemo';
 import { useSubject } from '../hooks/useSubjects';
 import { useSummaries, useFlashcards } from '../hooks/useContent';
@@ -8,6 +8,7 @@ import { useGamification } from '../hooks/useGamification';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { exportToAnki } from '../utils/ankiExport';
 
 interface FlashCard {
   front: string;
@@ -32,6 +33,33 @@ const gradeButtons = [
   { grade: 5, label: 'Fácil', color: 'bg-emerald-500 hover:bg-emerald-600' },
 ];
 
+function QuantitySelector({ total, label, options, onSelect }: {
+  total: number; label: string; options: number[]; onSelect: (n: number) => void;
+}) {
+  const filtered = options.filter(n => n <= total);
+  return (
+    <>
+      <p className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-3">{label}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {filtered.map(n => (
+          <div key={n} onClick={() => onSelect(n)}
+            className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-center cursor-pointer hover:border-brand-400 hover:bg-brand-50/50 dark:hover:border-brand-400 dark:hover:bg-brand-900/20 transition-all">
+            <p className="text-2xl font-bold text-brand-500">{n}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">cards</p>
+          </div>
+        ))}
+        {!filtered.includes(total) && (
+          <div onClick={() => onSelect(total)}
+            className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-center cursor-pointer hover:border-brand-400 hover:bg-brand-50/50 dark:hover:border-brand-400 dark:hover:bg-brand-900/20 transition-all">
+            <p className="text-2xl font-bold text-brand-500">{total}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Todos</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 export function FlashcardsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -42,22 +70,22 @@ export function FlashcardsPage() {
   const { addXP } = useGamification();
   const storageKey = 'studygen-flashcards-' + subjectId;
 
-  const [cards, setCards] = useState<FlashCard[]>([]);
-  const [dueCards, setDueCards] = useState<FlashCard[]>([]);
+  const [allCards, setAllCards] = useState<FlashCard[]>([]);
+  const [sessionCards, setSessionCards] = useState<FlashCard[] | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [showExportPicker, setShowExportPicker] = useState(false);
 
   // Load or generate cards
   useEffect(() => {
     if (initialized) return;
-    // Wait for backend query to resolve
     if (backendFlashcards === undefined) return;
 
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       const parsed: FlashCard[] = JSON.parse(saved);
-      // If backend has more cards than saved (new generation), merge new ones
       if (backendFlashcards && backendFlashcards.length > 0) {
         const existingFronts = new Set(parsed.map(c => c.front));
         const newCards = backendFlashcards
@@ -65,25 +93,20 @@ export function FlashcardsPage() {
           .map(fc => ({ front: fc.front, back: fc.back, interval: 0, repetition: 0, efactor: 2.5, dueDate: today() }));
         if (newCards.length > 0) {
           const merged = [...parsed, ...newCards];
-          setCards(merged);
-          setDueCards(merged.filter(c => c.dueDate <= today()));
+          setAllCards(merged);
           localStorage.setItem(storageKey, JSON.stringify(merged));
           setInitialized(true);
           return;
         }
       }
-      setCards(parsed);
-      setDueCards(parsed.filter(c => c.dueDate <= today()));
+      setAllCards(parsed);
     } else if (backendFlashcards && backendFlashcards.length > 0) {
-      // Use backend flashcards
       const generated = backendFlashcards.map(fc => ({
         front: fc.front, back: fc.back, interval: 0, repetition: 0, efactor: 2.5, dueDate: today(),
       }));
-      setCards(generated);
-      setDueCards(generated);
+      setAllCards(generated);
       localStorage.setItem(storageKey, JSON.stringify(generated));
     } else if (summaries) {
-      // Fallback: generate from keyTopics
       const generated: FlashCard[] = [];
       for (const summary of summaries) {
         for (const topic of summary.keyTopics) {
@@ -95,47 +118,75 @@ export function FlashcardsPage() {
           generated.push({ front: topic, back: snippet, interval: 0, repetition: 0, efactor: 2.5, dueDate: today() });
         }
       }
-      setCards(generated);
-      setDueCards(generated);
+      setAllCards(generated);
       localStorage.setItem(storageKey, JSON.stringify(generated));
     } else {
-      return; // Wait for summaries
+      return;
     }
     setInitialized(true);
   }, [backendFlashcards, summaries, initialized, storageKey]);
 
+  const dueCards = allCards.filter(c => c.dueDate <= today());
+
+  function startReview(count: number) {
+    const shuffled = [...dueCards].sort(() => Math.random() - 0.5).slice(0, count);
+    setSessionCards(shuffled);
+    setCurrentIndex(0);
+    setFlipped(false);
+  }
+
   function handleGrade(grade: number) {
-    const card = dueCards[currentIndex];
+    if (!sessionCards) return;
+    const card = sessionCards[currentIndex];
     const result = supermemo({ interval: card.interval, repetition: card.repetition, efactor: card.efactor }, grade as 0 | 1 | 2 | 3 | 4 | 5);
     addXP(5, 'review-flashcard');
     const updated: FlashCard = { ...card, ...result, dueDate: addDays(result.interval) };
 
-    const newCards = cards.map(c => c.front === card.front ? updated : c);
-    setCards(newCards);
-    localStorage.setItem(storageKey, JSON.stringify(newCards));
+    const newAll = allCards.map(c => c.front === card.front ? updated : c);
+    setAllCards(newAll);
+    localStorage.setItem(storageKey, JSON.stringify(newAll));
 
     setFlipped(false);
-    if (currentIndex < dueCards.length - 1) {
+    if (currentIndex < sessionCards.length - 1) {
       setCurrentIndex(i => i + 1);
     } else {
-      setDueCards([]);
+      setSessionCards([]); // empty = finished
     }
   }
 
   function handleReset() {
-    const reset = cards.map(c => ({ ...c, interval: 0, repetition: 0, efactor: 2.5, dueDate: today() }));
-    setCards(reset);
-    setDueCards(reset);
+    const reset = allCards.map(c => ({ ...c, interval: 0, repetition: 0, efactor: 2.5, dueDate: today() }));
+    setAllCards(reset);
+    setSessionCards(null);
     setCurrentIndex(0);
     setFlipped(false);
     localStorage.setItem(storageKey, JSON.stringify(reset));
   }
 
-  const nextReviewDays = cards.length > 0
-    ? Math.max(0, Math.ceil((new Date(cards.reduce((min, c) => c.dueDate < min ? c.dueDate : min, cards[0].dueDate)).getTime() - Date.now()) / 86400000))
+  async function handleExport(count: number) {
+    setShowExportPicker(false);
+    setExporting(true);
+    try {
+      const toExport = [...allCards].sort(() => Math.random() - 0.5).slice(0, count);
+      await exportToAnki(
+        subject?.title ? `StudyGen - ${subject.title}` : 'StudyGen Flashcards',
+        toExport.map(c => ({ front: c.front, back: c.back })),
+      );
+    } catch (e) {
+      console.error('Erro ao exportar:', e);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  const nextReviewDays = allCards.length > 0 && dueCards.length === 0
+    ? Math.max(0, Math.ceil((new Date(allCards.reduce((min, c) => c.dueDate < min ? c.dueDate : min, allCards[0].dueDate)).getTime() - Date.now()) / 86400000))
     : 0;
 
-  const current = dueCards[currentIndex];
+  const current = sessionCards?.[currentIndex];
+  const sessionFinished = sessionCards !== null && sessionCards.length === 0;
+  const inSession = sessionCards !== null && sessionCards.length > 0;
+  const quickOptions = [5, 10, 15, 20];
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
@@ -146,20 +197,69 @@ export function FlashcardsPage() {
           <ArrowLeft size={16} /> Voltar
         </button>
 
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">{subject?.title} — Flashcards</h2>
-            <p className="text-slate-500 dark:text-slate-400 mt-1">{cards.length} cards · {dueCards.length} para revisar</p>
-          </div>
-        </div>
+        <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white mb-2">{subject?.title} — Flashcards</h2>
+        <p className="text-slate-500 dark:text-slate-400 mb-8">{allCards.length} cards · {dueCards.length} para revisar</p>
 
-        {current ? (
+        {/* Config screen — choose quantity */}
+        {initialized && !sessionCards && !showExportPicker && (
+          <div className="animate-fade-in space-y-6">
+            {dueCards.length > 0 ? (
+              <Card>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Revisar Flashcards</h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-6">{dueCards.length} cards pendentes de revisão</p>
+                <QuantitySelector total={dueCards.length} label="Quantos cards revisar?" options={quickOptions} onSelect={startReview} />
+              </Card>
+            ) : allCards.length > 0 ? (
+              <Card className="text-center py-8">
+                <div className="text-5xl mb-4">✅</div>
+                <p className="text-xl font-bold text-slate-900 dark:text-white">Tudo em dia!</p>
+                <p className="text-slate-500 dark:text-slate-400 mt-2">
+                  {nextReviewDays === 0 ? 'Nenhum card pendente.' : `Próxima revisão em ${nextReviewDays} dia${nextReviewDays > 1 ? 's' : ''}.`}
+                </p>
+                <Button variant="secondary" onClick={handleReset} className="mt-6 flex items-center gap-2 mx-auto">
+                  <RotateCcw size={16} /> Resetar e revisar tudo
+                </Button>
+              </Card>
+            ) : null}
+
+            {allCards.length > 0 && (
+              <Card>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Exportar para Anki</h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-4">Baixe um arquivo .apkg para importar no Anki</p>
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowExportPicker(true)}
+                  loading={exporting}
+                  className="flex items-center gap-2"
+                >
+                  <Download size={16} /> Escolher cards para exportar
+                </Button>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Export picker */}
+        {showExportPicker && (
+          <div className="animate-fade-in">
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Exportar para Anki</h3>
+                <button onClick={() => setShowExportPicker(false)} className="text-sm text-slate-500 hover:text-slate-900 dark:hover:text-white">Cancelar</button>
+              </div>
+              <p className="text-slate-500 dark:text-slate-400 mb-6">{allCards.length} cards disponíveis</p>
+              <QuantitySelector total={allCards.length} label="Quantos cards exportar?" options={quickOptions} onSelect={handleExport} />
+            </Card>
+          </div>
+        )}
+
+        {/* Review session */}
+        {inSession && current && (
           <div className="animate-fade-in space-y-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Card {currentIndex + 1} de {dueCards.length}</span>
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Card {currentIndex + 1} de {sessionCards.length}</span>
             </div>
 
-            {/* Flip card */}
             <div className="flip-card cursor-pointer" style={{ minHeight: 280 }} onClick={() => setFlipped(f => !f)}>
               <div className={`flip-card-inner relative w-full ${flipped ? 'flipped' : ''}`} style={{ minHeight: 280 }}>
                 <div className="flip-card-front absolute inset-0">
@@ -187,23 +287,28 @@ export function FlashcardsPage() {
               </div>
             )}
           </div>
-        ) : initialized ? (
+        )}
+
+        {/* Session finished */}
+        {sessionFinished && (
           <div className="flex flex-col items-center text-center animate-fade-in py-12">
             <div className="text-6xl mb-4">🎉</div>
             <p className="text-2xl font-bold text-slate-900 dark:text-white">Revisão concluída!</p>
             <p className="text-slate-500 dark:text-slate-400 mt-2">
-              {nextReviewDays === 0 ? 'Todos os cards estão em dia.' : `Próxima revisão em ${nextReviewDays} dia${nextReviewDays > 1 ? 's' : ''}.`}
+              {dueCards.length > 0
+                ? `Ainda tem ${dueCards.length} card${dueCards.length > 1 ? 's' : ''} pendente${dueCards.length > 1 ? 's' : ''}.`
+                : 'Todos os cards estão em dia!'}
             </p>
             <div className="flex gap-3 mt-8">
-              <Button variant="secondary" onClick={handleReset} className="flex items-center gap-2">
-                <RotateCcw size={16} /> Resetar Cards
+              <Button variant="secondary" onClick={() => setSessionCards(null)} className="flex items-center gap-2">
+                <ArrowLeft size={16} /> Voltar
               </Button>
               <Button onClick={() => navigate(`/subjects/${subjectId}`)} className="flex items-center gap-2">
-                Voltar aos Resultados <ChevronRight size={16} />
+                Resultados <ChevronRight size={16} />
               </Button>
             </div>
           </div>
-        ) : null}
+        )}
       </main>
     </div>
   );

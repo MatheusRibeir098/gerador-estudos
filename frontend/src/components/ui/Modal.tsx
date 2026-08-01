@@ -36,7 +36,7 @@ export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalPr
             <X size={18} />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>{children}</div>
       </div>
     </div>
   );
